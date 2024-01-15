@@ -1,0 +1,227 @@
+#: Mocking commands and statements
+#:
+#: File : test.mock.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#  ORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#
+#-------------------------------------------------
+mockCountFile=mockcount
+function mockCallCounter () #@ USAGE mockCallCounter valueName
+{
+	funcName=$1
+	echo "$funcName" >> $TESTWORK_TEMPORARYFOLDER/$mockCountFile
+}
+
+function mockCallOutput () #@ USAGE funcName defaultValue
+{
+	funcName=$1	
+	defaultValue=$2
+
+	mockCallGetTimes $funcName
+	currentCallTime=$?
+
+    outputValue="${funcName}_output"
+    outputValue="${!outputValue}"
+    outputValue=( ${outputValue// /<:>} )
+    outputValue=( ${outputValue//<;>/ } )
+    outputValueLen=${#outputValue[@]}
+    if [ "$outputValueLen" -gt 0 ]; then
+    	if [ $currentCallTime -lt $(($outputValueLen + 1)) ]; then
+    		currentTimeOutput=${outputValue[$(($currentCallTime - 1))]}
+    	else
+    		currentTimeOutput=${outputValue[0]}
+    	fi
+
+		if [[ "${currentTimeOutput}" != '' ]]; then
+			currentTimeOutput=${currentTimeOutput//<:>/ }
+			echo "${currentTimeOutput}"
+		fi
+    else
+    	[ $# -gt 1 ] &&
+			echo "${@:2}"
+    fi
+}
+
+function mockCallReturn () #@ USAGE funcName defaultValue
+{
+	funcName=$1
+	defaultValue=$2
+
+	mockCallGetTimes $funcName
+	currentCallTime=$?
+
+    returnValue="${funcName}_return"
+    returnValue="${!returnValue=}"
+    returnValue=( ${returnValue//<;>/ } )
+    returnValueLen=${#returnValue[@]}
+    if [ "$returnValueLen" -gt 0 ]; then
+    	if [ $currentCallTime -lt $(($returnValueLen + 1)) ]; then
+    		currentTimeReturn=$((${returnValue[$(($currentCallTime - 1))]}))
+    	else
+    		currentTimeReturn=$((${returnValue[0]}))
+    	fi
+    else
+    	return $(($defaultValue))
+    fi
+
+   	return $(($currentTimeReturn))
+}
+
+function mockCallGetTimes () #@ USAGE mockCallGetTimes funcName
+{
+	funcName=$1
+	mockCounterArr=( $(cat $TESTWORK_TEMPORARYFOLDER/$mockCountFile | sort -n | uniq -c | awk '{ print $2, $1 }' | tr -s ' ') )
+
+	for (( i=0; i<${#mockCounterArr[@]} ; i+=2 )) ; do
+	    if [ "${mockCounterArr[i]}" == "$funcName" ]; then
+    		return $(("${mockCounterArr[i+1]}"))
+	    fi
+	done
+
+	return 0
+}
+
+function mail () #@ USAGE mail parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+    outputValue="${FUNCNAME[0]}_return"
+    if [[ "${!outputValue}" != '' ]]; then
+    	echo "${!outputValue}"
+    else
+		echo "Mail to '$3'"
+		echo "$2"
+	    while read -r data; do
+	        echo -e " $data"
+	    done
+    fi
+
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function cp () #@ USAGE cp parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function tar () #@ USAGE tar parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function rm () #@ USAGE rm parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function chown () #@ USAGE chown parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function mktemp () #@ USAGE mktemp parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function git () #@ USAGE git parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function pwd () #@ USAGE pwd parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function ssh () #@ USAGE ssh parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function jq () #@ jq parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function grep () #@ grep parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function cd () #@ cd parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function ln () #@ ln parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function realpath () #@ realpath parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function column () #@ column parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function date () #@ date parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+	echo $(mockCallOutput "${FUNCNAME[0]}" "${FUNCNAME[0]} ${@}")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}

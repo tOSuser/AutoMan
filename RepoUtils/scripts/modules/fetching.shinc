@@ -1,0 +1,173 @@
+#: Fetching libs/modules functions
+#:
+#: File : fetching.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+versionDefaultLen=22
+reporosityPath=http://<reporositypath>
+
+#*
+#*  @description    fetch a package from the internal reporosity
+#*						@ http://<reporositypath>
+#*
+#*  @param			packagefile
+#*  @param			installpath
+#*
+#*  @return			0 if Success, > 0 if it faces a failure
+#*
+function internalfetcher () #@ USAGE internalfetcher packageFile packageVersion installpath
+{
+	packageFile=$1
+	packageVersion=$2
+	installpath=$3
+	packExtention=".tar.gz"
+
+	WORK_DIR=$(mktemp -d)
+	[[ ! -d "$installpath/$packageFile" ]] &&
+		read -p "$installpath/$packageFile$ was not found. '$packageFile' needs to be downloaded, Press enter to continue" &&
+		wgetOutput=$(wget $reporosityPath/$packageFile$packageVersion$packExtention -O $WORK_DIR/$packageFile$packExtention) &&
+		tar -xf $WORK_DIR/$packageFile$packExtention -C $WORK_DIR &&
+		mv $WORK_DIR/$packageFile $installpath
+
+	[ -d $WORK_DIR ] &&
+		rm -r $WORK_DIR
+
+	[ ! -d "$installpath/$packageFile" ] &&
+		echo "Fetchin $packageFile was failed." && return 1
+
+	#Success fetching
+	return 0
+}
+
+#*
+#*  @description    check the version of a fetchedpackage from the internal reporosity
+#*						@ http://<reporositypath>
+#*
+#*  @param			packageFile
+#*  @param			packagePath
+#*  @param			requiredVersion
+#*
+#*  @return			0/Success if the version is gtrequiredVersion, > 0 if not ot it faces a failure
+#*
+function checkPackageVersion () #@ USAGE checkPackageVersion packageFile packagePath requiredVersion
+{
+	packageFile=$1
+	packagePath=$2
+	requiredVersion=$3
+
+	# no package is found
+	[[ ! -d "$packagePath/$packageFile" ]] &&
+		return 2
+
+	# no .version in the package is found
+	[[ ! -f "$packagePath/$packageFile/.version" ]] &&
+		return 3
+
+	currentVersion=0
+	while read line; do currentVersion=${line//[!0-9]}; done < "$packagePath/$packageFile/.version"
+
+	([ "$currentVersion" -eq "$requiredVersion" ] || [ "$currentVersion" -gt "$requiredVersion" ]) &&
+		return 0
+
+	return 1
+}
+
+#*
+#*  @description    get the current available version of a package from the internal reporosity
+#*						@ http://<reporositypath>
+#*
+#*  @param			packageName
+#*  @param			packagePath
+#*
+#*  @return			0/Success if the version is of a pack is found, > 0 if not ot it faces a failure
+#*
+function checkCurrentAvailableVersion () #@ USAGE checkCurrentAvailableVersion packageName packagePath
+{
+	packageName=$1
+	packagePath=$2
+
+	currentInstalledVersion=0
+	isDirExist $packagePath
+	if [ $? -eq 0 ]; then
+		isFileExist $packagePath/.version
+		if [ $? -eq 0 ]; then
+			currentInstalledVersionStr=$(getFromFile $packagePath/.version)
+			versionStrLen=${#currentInstalledVersionStr}
+			if [ $versionStrLen -gt $((versionDefaultLen - 1)) ]; then
+				currentInstalledVersion=${currentInstalledVersionStr:0:6}${currentInstalledVersionStr:7:4}
+			else
+				currentInstalledVersion=${currentInstalledVersionStr}
+			fi
+		fi
+	fi
+
+	currentAvailableVersion=-1
+	WORK_DIR=$(mktemp -d)
+	wget $reporosityPath/${packageName}.version -O $WORK_DIR/${packageName}.version
+	isFileExist $WORK_DIR/${packageName}.version
+	if [ $? -eq 0 ]; then
+		currentPackageVersionStr=$(getFromFile $WORK_DIR/${packageName}.version)
+		versionStrLen=${#currentPackageVersionStr}
+		if [ $versionStrLen -gt $((versionDefaultLen - 1)) ]; then
+			currentPackageVersion=${currentPackageVersionStr:0:6}${currentPackageVersionStr:7:4}
+			currentAvailableVersion=$currentPackageVersion
+		else
+			currentPackageVersion=${currentPackageVersionStr}
+			currentAvailableVersion=$currentPackageVersion
+		fi
+	fi
+
+	[ -d $WORK_DIR ] &&
+		rm -r $WORK_DIR
+
+	echo "Current version: $currentInstalledVersion"
+	echo "Available version: $currentAvailableVersion"
+	[ $currentAvailableVersion -gt $currentInstalledVersion ] &&
+		return 0
+	return 1
+}
+
+#*
+#*  @description    update the current available version of a package from the internal reporosity
+#*						@ http://<reporositypath>
+#*
+#*  @param			packageName
+#*  @param			packagePath
+#*
+#*  @return			0/Success if the version is of a pack is found, > 0 if not ot it faces a failure
+#*
+function updateToCurrentAvailableVersion () #@ USAGE updateToCurrentAvailableVersion packageName packagePath
+{
+	packageName=$1
+	packagePath=$2
+	packExtention=".tar.gz"
+
+	isDirExist $packagePath
+	[ $? -ne 0 ] &&
+		mkdir $packagePath &&
+		[ $? -ne 0 ] &&
+			return 2
+
+	updateSuccesStatus=1
+	WORK_DIR=$(mktemp -d)
+	wget --quiet $reporosityPath/$packageName$packExtention -O $WORK_DIR/$packageName$packExtention
+	isFileExist $WORK_DIR/$packageName$packExtention
+	if [ $? -eq 0 ]; then
+		tar -xf $WORK_DIR/$packageName$packExtention -C $WORK_DIR
+		if [ $? -eq 0 ]; then
+			[ ! -d $packagePath ] &&
+				mkdir $packagePath
+			cp -rf $WORK_DIR/pack/. $packagePath/ &&
+			updateSuccesStatus=0
+		fi
+	fi
+
+	[ -d $WORK_DIR ] &&
+		rm -r $WORK_DIR
+
+	[ $updateSuccesStatus -eq 0 ]
+		return 0
+	return 1
+}

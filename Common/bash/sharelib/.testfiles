@@ -1,0 +1,4 @@
+arrTestList=( 'bash' )
+
+SH_BLOCK_TEST_FILES=( 'jenkinsjobshelper' )
+SH_UNIT_TEST_FILES=(  )

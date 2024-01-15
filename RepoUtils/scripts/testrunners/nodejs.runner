@@ -1,0 +1,97 @@
+#: NodeJS test runner
+#:
+#: File : nodejs.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+nodeModulesSymlink=node_modules
+nodeModulesPath=$nodeModulesHome/node_modules
+
+JEST_FILE=$nodeModulesHome/node_modules/.bin/jest
+nodequietmode='NO'
+nodeTestFiles=(  )
+tracemode=$LL_INFO
+testMode='UT'
+
+# check NodeJS environment requirements
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupNodeJSEnvList=( 'nodejs' )
+	for iSetupEnv in "${arrSetupNodeJSEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+nodeCompilerCmd=$JEST_FILE
+pythonCompilerCmd='python'
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	nodeTestFiles=${NODE_UNIT_TEST_FILES[@]} && nodequietmode='YES' && testMode='UT'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	nodeTestFiles=${NODE_UNIT_TEST_FILES[@]} && nodequietmode='NO' && testMode='UT'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	nodeTestFiles=${NODE_BLOCK_TEST_FILES[@]} && nodequietmode='YES' && testMode='BT'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	nodeTestFiles=${NODE_BLOCK_TEST_FILES[@]} && nodequietmode='NO' && testMode='BT'
+
+verbosetracer $verbosemode "$nodeTestFiles"
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "-info" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_INFO
+nextArgument=$(hasArgument "-debug" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_DEBUG
+
+[[ $nodequietmode = 'NO' ]] &&
+	echo "Mode : ${nodeCompilerCmd}"
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+if [ $nodequietmode = 'NO' ]; then
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+else
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+fi
+
+currentFolder=$(pwd)
+cd $SCRIPT_PATH/bin
+for currenttestfile in ${nodeTestFiles[@]}
+do
+	testFileName=tests/${currenttestfile}.test.ts
+	[ ! -f $testFileName ] &&
+		testFileName=tests/${currenttestfile}.test.js
+
+	verboserunx $verbosemode $JEST_TRYING_TIMES "$JEST_FILE $testFileName"
+	[ $? -ne 0 ] &&
+		cd "$currentFolder" &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+		return 1
+done
+
+cd "$currentFolder"
+return 0

@@ -1,0 +1,114 @@
+#: Python test runner
+#:
+#: File : python.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+pythonFiles=( 'python' 'python3' )
+pythonTestFiles=(  )
+pythonquietmode='NO'
+tracemode=''
+
+# check python environment requirements
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupPythonEnvList=( 'python' )
+	for iSetupEnv in "${arrSetupPythonEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	pythonTestFiles=${PYTHON_UNIT_TEST_FILES[@]} && pythonquietmode='YES'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	pythonTestFiles=${PYTHON_UNIT_TEST_FILES[@]} && pythonquietmode='NO'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	pythonTestFiles=${PYTHON_BLOCK_TEST_FILES[@]} && pythonquietmode='YES'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	pythonTestFiles=${PYTHON_BLOCK_TEST_FILES[@]} && pythonquietmode='NO'
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "-info" "$@"); [ $? -eq 0 ] &&
+	tracemode='-info'
+nextArgument=$(hasArgument "-debug" "$@"); [ $? -eq 0 ] &&
+	tracemode='-debug'
+
+for pythonCompiler in ${pythonFiles[@]}
+do
+	[[ $pythonquietmode = 'NO' ]] &&
+		echo "Mode : ${pythonCompiler}"
+
+	RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+	[ $verbosemode -eq 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+	[ $colormode -ne 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+	[ $productmode -eq 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+	if [ $pythonquietmode = 'NO' ]; then
+		verboserun $verbosemode "$pythonCompiler \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+	else
+		verboserun $verbosemode "$pythonCompiler \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+	fi
+
+	[ $? -ne 0 ] &&
+		echo "Error : compiling error" &&
+			return 1
+
+	nextArgument=$(hasArgument "-case" "$@")
+	if [ $? -eq 0 ] && [ ! -z "$nextArgument" ]; then
+		caseStr="$nextArgument"
+		caseStrDots=${caseStr//\./}
+		nDots=$((${#caseStr}-${#caseStrDots}))
+		[ $nDots -eq 1 ] && caseStr="${caseStr//\.*/}.$caseStr"
+
+		if [ $pythonquietmode = 'NO' ]; then
+			echo "Test case : $caseStr"
+			echo "----------"
+			verboserun $verbosemode "$pythonCompiler -m unittest -f \"${CODE_PATH}.$caseStr\""
+		else
+			verboserun $verbosemode "$pythonCompiler -m unittest -f \"${CODE_PATH}.$caseStr\"" 2>/dev/null
+		fi
+
+		[ $? -ne 0 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some test cases $CODE_PATH.$caseStr were failed${NC}" &&
+			return 1
+	else
+		for currenttestfile in ${pythonTestFiles[@]}
+		do
+			[[ $pythonquietmode = 'NO' ]] &&
+				echo -e "\nMode : ${pythonCompiler} - ${currenttestfile}"
+
+			if [ $pythonquietmode = 'NO' ]; then
+				verboserun $verbosemode "$pythonCompiler \"${SCRIPT_PATH}/${CODE_PATH}/${currenttestfile}.pyc\" \"$tracemode\""
+			else
+				verboserun $verbosemode "$pythonCompiler \"${SCRIPT_PATH}/${CODE_PATH}/${currenttestfile}.pyc\" \"$tracemode\"" 2>/dev/null
+			fi
+			[ $? -ne 0 ] &&
+				$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+				echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+				return 1
+		done
+	fi
+done
+return 0

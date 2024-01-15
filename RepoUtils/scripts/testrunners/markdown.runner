@@ -1,0 +1,104 @@
+#: markdown test runner
+#:
+#: File : markdown.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+MARKDOWNLINT_FILE=$nodeModulesHome/node_modules/.bin/markdownlint
+MARKDOWN_STRICT_DISABLED_RULES=""
+MARKDOWN_NONSTRICT_DISABLED_RULES="MD032"
+
+markdownquietmode='NO'
+markdownTestFiles=(  )
+
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	markdownquietmode='YES' && testMode='UT'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	markdownquietmode='NO' && testMode='UT'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	markdownquietmode='YES' && testMode='BT'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	markdownquietmode='NO' && testMode='BT'
+
+if [ $testMode = 'UT' ]; then
+	# check markdown environment requirements
+	if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+		arrSetupMarkdownEnvList=( 'nodejs' 'markdown' )
+		for iSetupEnv in "${arrSetupMarkdownEnvList[@]}"
+		do
+			verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+			. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+			[ $? -ne 0 ] &&
+				return 1
+		done
+	fi
+
+	# check local environment requirements
+	if [[ -f $SCRIPT_PATH/.local.env ]]; then
+		verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+		. ${SCRIPT_PATH}/.local.env
+		[ $? -ne 0 ] &&
+			return 1
+	fi
+
+	pythonCompilerCmd='python'
+
+	# Test files
+	#-----------
+
+	markdownFiles=${MARKDOWN_FILES[@]}
+	markdownStrictFiles=${MARKDOWN_STRICT_FILES[@]}
+
+	RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+	[ $verbosemode -eq 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+	[ $colormode -ne 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+	[ $productmode -eq 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+	if [ $markdownquietmode = 'NO' ]; then
+		verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+	else
+		verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+	fi
+
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo "Error : compiling error" &&
+		return 1
+
+	echo "Markdown checker:"
+	for currentmarkdownfile in ${markdownFiles[@]}
+	do
+		markdownDisabledRules=""
+		[[ $MARKDOWN_NONSTRICT_DISABLED_RULES != "" ]] &&
+			markdownDisabledRules="--disable $MARKDOWN_NONSTRICT_DISABLED_RULES --"
+
+		verboserun $verbosemode "$MARKDOWNLINT_FILE $markdownDisabledRules $SCRIPT_PATH/$CODE_PATH/$currentmarkdownfile"
+		[ $? -ne 0 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some markdown lines in file '${currentmarkdownfile}' are not correct.${NC}" &&
+			return 1
+		echo "$currentmarkdownfile - OK"
+	done
+
+	for currentmarkdownfile in ${markdownStrictFiles[@]}
+	do
+		markdownDisabledRules=""
+		[[ $MARKDOWN_STRICT_DISABLED_RULES != "" ]] &&
+			markdownDisabledRules="--disable $MARKDOWN_STRICT_DISABLED_RULES --"
+
+		verboserun $verbosemode "$MARKDOWNLINT_FILE $markdownDisabledRules $SCRIPT_PATH/$CODE_PATH/$currentmarkdownfile"
+		[ $? -ne 0 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some markdown lines in file '${currentmarkdownfile}' are not correct.${NC}" &&
+			return 1
+		echo "$currentmarkdownfile - OK"
+	done
+fi
+return 0

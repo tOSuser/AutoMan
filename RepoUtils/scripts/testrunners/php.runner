@@ -1,0 +1,141 @@
+#: Php test runner
+#:
+#: File : php.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+PHPUNIT_FILE=phpunit
+phpquietmode='NO'
+phpTestFiles=(  )
+LL_INFO=2
+LL_DEBUG=3
+tracemode=$LL_INFO
+
+# check Php environment requirements
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupPhpEnvList=( 'php' )
+	for iSetupEnv in "${arrSetupPhpEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+phpCompilerCmd=$PHPUNIT_FILE
+pythonCompilerCmd='python'
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	phpTestFiles=${PHP_UNIT_TEST_FILES[@]} && phpquietmode='YES'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	phpTestFiles=${PHP_UNIT_TEST_FILES[@]} && phpquietmode='NO'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	phpTestFiles=${PHP_BLOCK_TEST_FILES[@]} && phpquietmode='YES'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	phpTestFiles=${PHP_BLOCK_TEST_FILES[@]} && phpquietmode='NO'
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "-info" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_INFO
+nextArgument=$(hasArgument "-debug" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_DEBUG
+
+[[ $phpquietmode = 'NO' ]] &&
+	echo "Mode : ${phpCompilerCmd}"
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+if [ $phpquietmode = 'NO' ]; then
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+else
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"  >>/dev/null
+fi
+
+[ $? -ne 0 ] &&
+	echo "Error : compiling error" &&
+		return 1
+
+additionalParameter=""
+caseFileNameStr=""
+nextArgument=$(hasArgument "-case" "$@")
+if [ $? -eq 0 ] && [ ! -z "$nextArgument" ]; then
+	tracemode=$LL_DEBUG
+
+	caseStr="$nextArgument"
+	caseStrDots=${caseStr//\./}
+	nDots=$((${#caseStr}-${#caseStrDots}))
+	[ $nDots -eq 1 ] &&
+		caseStr="${caseStr//\.*/}::${caseStr#*\.}"
+
+	[ $nDots -eq 2 ] && caseFileNameStr="${caseStr//\.*/}" &&
+		caseStr=${caseStr#*\.} &&
+		caseStr="${caseStr//\.*/}::${caseStr#*\.}"
+
+	additionalParameter="--filter $caseStr"
+
+	echo "Test filter : $caseStr"
+	echo "----------"
+fi
+
+export TRUN_TRACEMODE=$tracemode
+
+if [[ $caseFileNameStr != "" ]]; then
+	echo "Test file : $caseFileNameStr"
+
+	if [ $phpquietmode = 'NO' ]; then
+		verboserun $verbosemode "$phpCompilerCmd --colors $additionalParameter \"${SCRIPT_PATH}/${CODE_PATH}/${caseFileNameStr}.php\""
+	else
+		verboserun $verbosemode "$phpCompilerCmd --colors $additionalParameter \"${SCRIPT_PATH}/${CODE_PATH}/${caseFileNameStr}.php\"" 2>/dev/null
+	fi
+else
+	for currenttestfile in ${phpTestFiles[@]}
+	do
+		[[ $phpquietmode = 'NO' ]] &&
+			echo -e "\nMode : ${phpCompilerCmd} - ${currenttestfile}"
+
+		if [ $phpquietmode = 'NO' ]; then
+			verboserun $verbosemode "$phpCompilerCmd --colors $additionalParameter \"${SCRIPT_PATH}/${CODE_PATH}/${currenttestfile}.php\""
+		else
+			verboserun $verbosemode "$phpCompilerCmd --colors $additionalParameter \"${SCRIPT_PATH}/${CODE_PATH}/${currenttestfile}.php\"" 2>/dev/null
+		fi
+
+		[ $? -ne 0 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+			return 1
+	done
+fi
+unset TRUN_TRACEMODE
+
+# remove phpunit cache files
+arrPhpunitCacheFiles=( '.phpunit.result.cache' )
+currentPath=`pwd`
+for iChacheFile in "${arrPhpunitCacheFiles[@]}"
+do
+	if [[ -f $currentPath/$iChacheFile ]]; then
+		verboserun $verbosemode "rm $currentPath/$iChacheFile"
+	fi
+done
+return 0

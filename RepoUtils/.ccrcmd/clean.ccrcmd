@@ -1,0 +1,44 @@
+#: ccrun command : clean
+#:
+#: File : clean.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# Local variables:
+#  commandToRun
+#  currentPath
+#  runParamArray
+#---------------------------------------
+TRUN_CMD='trun'
+
+BUILD_ARGUMENTS='-keep -b'
+[ $productmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -product"
+[ $verbosemode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -verbose"
+[ $rawmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -rawmode"
+[ $debugmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS debug"
+[ $debugmode -ne 0 ] && [ $infomode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS info"
+
+echo -e "${BLUE}Run local cleaner${NC}"
+
+cleanExitcode=0
+arrTemporaryFolders=( 'bin' '.bin' 'pack' '.pack' )
+for temporaryFolder in ${arrTemporaryFolders[@]}
+do
+    runshellcmd "[ -d \"$shellPath/$temporaryFolder\" ]"
+    if [ $? -eq 0 ]; then
+        runshellcmd "rm -r $shellPath/$temporaryFolder"
+        [ $? -ne 0 ] &&
+            cleanExitcode=1 &&
+            echo -e "${BGRED}${WHITE}An error occurred during removing '$temporaryFolder'${NC}" &&
+            break
+        echo -e "Remove ${YELLOW}"$shellPath/$temporaryFolder"${NC}"
+    fi
+done
+
+exitCode=$cleanExitcode

@@ -1,0 +1,107 @@
+#: Angular test runner
+#:
+#: File : angular.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+ANGULARUNIT_FILE=ng
+JEST_FILE=$nodeModulesHome/node_modules/.bin/jest
+angularquietmode='NO'
+angularTestFiles=(  )
+tracemode=$LL_INFO
+testMode='UT'
+
+# check Angular environment requirements
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupAngularEnvList=( 'nodejs' 'angular' )
+	for iSetupEnv in "${arrSetupAngularEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+angularCompilerCmd=$ANGULARUNIT_FILE
+pythonCompilerCmd='python'
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	angularTestFiles=${ANGULAR_UNIT_TEST_FILES[@]} && angularquietmode='YES' && testMode='UT'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	angularTestFiles=${ANGULAR_UNIT_TEST_FILES[@]} && angularquietmode='NO' && testMode='UT'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	angularTestFiles=${ANGULAR_BLOCK_TEST_FILES[@]} && angularquietmode='YES' && testMode='BT'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	angularTestFiles=${ANGULAR_BLOCK_TEST_FILES[@]} && angularquietmode='NO' && testMode='BT'
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "-info" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_INFO
+nextArgument=$(hasArgument "-debug" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_DEBUG
+
+[[ $angularquietmode = 'NO' ]] &&
+	echo "Mode : ${angularCompilerCmd}"
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+if [ $angularquietmode = 'NO' ]; then
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+else
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+fi
+
+currentFolder=$(pwd)
+cd $SCRIPT_PATH/bin
+if [ $testMode = 'BT' ]; then
+
+	verboserun $verbosemode "ng build"
+	#----------
+	#ng test --browsers FirefoxHeadless --watch=false
+	#ng test --browsers PhantomJS --watch=false
+	#ng test --browsers Firefox
+	#----------
+	[ $? -ne 0 ] &&
+		cd "$currentFolder" &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : building error${NC}" &&
+		return 1
+	echo "Building OK."
+fi
+
+if [ $testMode = 'UT' ] || [ $testMode = 'BT' ]; then
+	for currenttestfile in ${angularTestFiles[@]}
+	do
+		verboserunx $verbosemode $JEST_TRYING_TIMES "$JEST_FILE tests/${currenttestfile}.test.ts"
+		[ $? -ne 0 ] &&
+			cd "$currentFolder" &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+			return 1
+	done
+fi
+
+cd "$currentFolder"
+return 0

@@ -1,0 +1,122 @@
+#: Java test runner
+#:
+#: File : java.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+javaquietmode='NO'
+javaTestFiles=(  )
+tracemode=$LL_INFO
+
+# check java environment requirements
+#if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupjavaEnvList=( 'java' )
+	for iSetupEnv in "${arrSetupjavaEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+#fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+pythonCompilerCmd='python'
+javaTestType=unit
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	javaTestType=unit && javaquietmode='YES'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	javaTestType=unit && javaquietmode='NO'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	javaTestType=block && javaquietmode='YES'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	javaTestType=block && javaquietmode='NO'
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "info" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_INFO
+nextArgument=$(hasArgument "debug" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_DEBUG
+
+[[ $javaquietmode = 'NO' ]] &&
+	echo "Mode : $JAVAC"
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+if [ $javaquietmode = 'NO' ]; then
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+else
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+fi
+
+[ $? -ne 0 ] &&
+	$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+	echo "Error : compiling error" &&
+	return 1
+
+for iJavaProject in "${arrJavaProjectList[@]}"
+do
+	testSourcePath=$SCRIPT_PATH/$CODE_PATH/$iJavaProject/tests/
+	sourcePath=$SCRIPT_PATH/$CODE_PATH/$iJavaProject/src/
+	resourcePath=$SCRIPT_PATH/$CODE_PATH/$iJavaProject/res/
+
+	classPath=.
+	classPath="$classPath":"$SCRIPT_PATH/$CODE_PATH"
+	for currentlibfile in ${javaLibs[@]}
+	do
+		classPath="$classPath":"$currentlibfile"
+	done
+
+	verboserun $verbosemode "javac -d \"$SCRIPT_PATH/$CODE_PATH/$iJavaProject\" -cp \"$classPath\" \"$sourcePath\"*.java"
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo "Error : Sources - compiling error" &&
+		return 1
+	javac -d "$SCRIPT_PATH/$CODE_PATH/$iJavaProject" -cp "$classPath" "$testSourcePath"*.java
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo "Error : Tests - compiling error" &&
+		return 1
+
+	[[ "$javaTestType" = "unit" ]] && eval javaTestFiles='${'JAVA_UNIT_TEST_FILES_$iJavaProject'[@]}'
+	[[ "$javaTestType" = "block" ]] && eval javaTestFiles='${'JAVA_BLOCK_TEST_FILES_$iJavaProject'[@]}'
+
+	for currenttestfile in ${javaTestFiles[@]}
+	do
+		[[ $javaquietmode = 'NO' ]] &&
+			echo -e "\nMode : $JAVAC - ${currenttestfile}"
+
+		if [ $javaquietmode = 'NO' ]; then
+			verboserun $verbosemode "$JAVA -cp $classPath org.junit.runner.JUnitCore \"$currenttestfile\""
+		else
+			verboserun $verbosemode "$JAVA -cp $classPath org.junit.runner.JUnitCore \"$currenttestfile\"" 2>/dev/null
+		fi
+
+		[ $? -ne 0 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+			return 1
+	done
+done
+return 0

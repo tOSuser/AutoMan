@@ -1,0 +1,54 @@
+#: ccrun command : update
+#:
+#: File : update.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# global variables:
+#  ORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#
+# Local variables:
+#  runParamArray
+#---------------------------------------
+updater_1=( "repoutils" "RepoUtils" "$repoUtilssHome/repoutils" "Close and Reopen the terminal to reload settings." )
+updater_2=( "node" "node_modules" "$nodeModulesHome/node_modules" "-" )
+availableUpdaterArr=( updater_1 updater_2 )
+
+currentUpdater=repoutils
+nextitem=$(lookForArgument "-pack" "${runParamArray[@]}")
+[ $? -eq 0 ] &&
+    currentUpdater=$nextitem
+
+for updaterInfo in "${availableUpdaterArr[@]}"
+do
+	eval updaterName='"${'$updaterInfo'[0]}"'
+	eval updaterPackName='"${'$updaterInfo'[1]}"'
+	eval updaterInstallPath='"${'$updaterInfo'[2]}"'
+	eval updaterMessage='"${'$updaterInfo'[3]}"'
+	if [[ "$updaterName" == "$currentUpdater" ]]; then
+		currentVersionOnRepo=$(checkCurrentAvailableVersion $updaterPackName $updaterInstallPath)
+		updateStatus=$?
+		echo -e "$currentVersionOnRepo"
+		[ $updateStatus -eq 2 ] &&
+		    echo -e "Something went wrong" &&
+		    return 1
+
+		[ $updateStatus -eq 1 ] &&
+			echo "No new update was found." &&
+			return 0
+
+		# A New version was found
+		# Installing updates
+		updateToCurrentAvailableVersion $updaterPackName $updaterInstallPath
+		[ $? -ne 0 ] &&
+			return 1
+		echo "'$updaterPackName' was updated to the latest available version."
+		echo "$updaterMessage"
+		return 0
+	fi
+done
+
+echo "'$currentUpdater' was not found!"
+return 1

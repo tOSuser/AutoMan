@@ -1,0 +1,33 @@
+#arrTestList=( 'xml' 'html' 'json' 'cpp' 'php' 'python' 'nodejs' 'angular' 'react' 'java' android' )
+arrTestList=(  )
+
+XML_FILES=(  )
+XML_STRICT_FILES=(  )
+
+HTML_FILES=(  )
+HTML_STRICT_FILES=(  )
+
+JSON_STRICT_FILES=(  )
+JSON_FILES=(  )
+
+PHP_BLOCK_TEST_FILES=(  )
+PHP_UNIT_TEST_FILES=(  )
+
+PYTHON_BLOCK_TEST_FILES=(  )
+PYTHON_UNIT_TEST_FILES=( )
+
+NODE_BLOCK_TEST_FILES=(  )
+NODE_UNIT_TEST_FILES=(  )
+
+ANGULAR_BLOCK_TEST_FILES=(  )
+ANGULAR_UNIT_TEST_FILES=(  )
+
+REACT_BLOCK_TEST_FILES=(  )
+REACT_UNIT_TEST_FILES=(  )
+
+JAVA_BLOCK_TEST_FILES_=(  )
+JAVA_UNIT_TEST_FILES_=(  )
+
+arrAndroidProjectList=( '' )
+ANDROID_BLOCK_TEST_FILES_=(  )
+ANDROID_UNIT_TEST_FILES_=(  )

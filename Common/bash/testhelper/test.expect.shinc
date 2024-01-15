@@ -1,0 +1,37 @@
+#: Expecting mock calls
+#:
+#: File : test.expect.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#  ORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#
+#-------------------------------------------------
+mockCountFile=mockcount
+
+function ExpectCall () #@ USAGE ExpectCall funcName expectTimes
+{
+	funcName=$1
+	expectTimes=$2
+
+	mockCounterArr=( $(cat $TESTWORK_TEMPORARYFOLDER/$mockCountFile | sort -n | uniq -c | awk '{ print $2, $1 }' | tr -s ' ') )
+
+	for (( i=0; i<${#mockCounterArr[@]} ; i+=2 )) ; do
+	    if [ "${mockCounterArr[i]}" == "$funcName" ]; then
+	    	[ "${mockCounterArr[i+1]}" -eq $expectTimes ] &&
+	    		return 0
+	    	echo "'$funcName' : expected $expectTimes, actual calls ${mockCounterArr[i+1]}."
+	    	return 1
+	    fi
+	done
+
+	if [ $expectTimes -ne 0 ]; then
+		echo "'$funcName' : expected $expectTimes, actual calls 0."
+		return 1
+	fi
+	return 0
+}

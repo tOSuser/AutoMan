@@ -1,0 +1,4 @@
+arrTestList=( 'template' )
+
+TEMPLATE_BLOCK_TEST_FILES=( 'BlockTest1' )
+TEMPLATE_UNIT_TEST_FILES=( 'Test1' 'Test2' )

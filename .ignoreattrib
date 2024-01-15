@@ -1,0 +1,15 @@
+#: Files/folders and extentions that should be ignored
+#:  by `checkattribute` and `fixattribute` commands
+#:
+#: File : .ignoreattrib
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#
+#-------------------------------------------------
+ignoreExtentionArr=( 'sh' )
+ignoreFilesArr=( 'ccrun' 'trun' )
+ignoreFolders=( '/.git/' '/pack/' '/.pack/' '/bin/' '/.bin/' )

@@ -1,0 +1,16 @@
+#: ccrun command : example
+#:
+#: File : example.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# global variables:
+#  ORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#
+# Local variables:
+#  runParamArray
+#---------------------------------------
+echo -e "${BLUE}USAGE : ccrun example${NC}" &&
+return 0

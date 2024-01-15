@@ -1,0 +1,59 @@
+#: Overloading values and data to test a script
+#:
+#: File : checkrunner.overloader.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#  TESTORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#  packagesFolder
+#  packagesList
+#  reportonlyFlag
+#  upgradeFlag
+#  verboseMode
+#
+#-------------------------------------------------
+## Import libraries
+[ -f $TESTORIGINALSCRIPT_PATH/test.mock.shinc ] &&
+	. $TESTORIGINALSCRIPT_PATH/test.mock.shinc
+
+#-------------------------------------------------
+# Test data to overload packagebuilder.sh
+function runshellcmd () #@ USAGE runshellcmd parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+    if [ $jenkinsjobmode -eq 0 ]; then
+        cmdstr="unshare -mr chroot $CHROOT_PATH sh -c \"$1\""
+    else
+        cmdstr="$1"
+    fi
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "runshellcmd :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function isFileExist () #@ USAGE isFileExist parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "isFileExist :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function isDirExist () #@ USAGE isDirExist parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "isDirExist :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+echo -e "****Runing in a test mode"
+echo -e "-------------------------------------------------"

@@ -1,0 +1,5 @@
+arrTestList=( 'python' )
+
+PYTHON_BLOCK_TEST_FILES=( 'TestJavaTransformer' 'TestJsonTransformer' 'TestJsTransformer' 'TestPhpTransformer' 'TestWebTransformer' \
+	'TestXmlTransformer' 'TestMdTransformer'  'TestShTransformer' 'TestDataTransformer' 'TestXtraTransformer' )
+PYTHON_UNIT_TEST_FILES=( 'TestBinBuilder' )

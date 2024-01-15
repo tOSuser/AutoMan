@@ -1,0 +1,50 @@
+#: local ccrun command : pack
+#:
+#: File : pack.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# Local variables:
+#  commandToRun
+#  currentPath
+#  runParamArray
+#---------------------------------------
+TRUN_CMD='trun'
+
+BUILD_ARGUMENTS='-keep -b'
+[ $productmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -product"
+[ $verbosemode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -verbose"
+[ $rawmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -rawmode"
+[ $debugmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS debug"
+[ $debugmode -ne 0 ] && [ $infomode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS info"
+
+echo -e "${BLUE}Run local pack builder${NC}"
+
+packFolder=pack
+packSource_1=( 'scripts/*' '' )
+arrPackSources=( packSource_1 )
+#---------------------------------------
+# Main
+#---------------------------------------
+nextitem=$(hasArgument "-fixattrib" "${runParamArray[@]}")
+[ $? -eq 0 ] &&
+	runUnitCommand fixattrib $shellPath $currentPath
+
+runshellcmd "[ -d \"$shellPath/$packFolder\" ] &&
+	rm -r \"$shellPath/$packFolder\""
+runshellcmd "mkdir \"$shellPath/$packFolder\""
+
+for packSource in ${arrPackSources[@]}
+do
+	eval itemSource='"${'$packSource'[0]}"'
+	eval itemTarget='"${'$packSource'[1]}"'
+	runshellcmd "cp -r --verbose $shellPath/$itemSource $shellPath/$packFolder/$itemTarget"
+done
+
+echo -e "${BGGREEN}${WHITE}A package of needed files was built in 'pack' folder ${NC}"

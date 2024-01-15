@@ -1,0 +1,104 @@
+#: Jenkins jobs helper functions
+#:
+#: File : jenkinsjobshelper.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#  ORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#  verboseRunStr
+#
+#-------------------------------------------------
+
+#*
+#*  @description    check an argumants' array for an argumant
+#*
+#*  @param          inParamArray
+#*  @param          argToCheck
+#*
+#*  @return         0 if Found, > 0 if it was not found
+#*
+function lookForArgument () #@ USAGE lookForArgument argToCheck param1 param2 ...
+{
+    argToCheck=$1
+    inParamArray=($@)
+    inParamArray=("${inParamArray[@]:1}")
+    inParamTotalElements=${#inParamArray[@]}
+
+    currentElement=0
+    for inparam in "${inParamArray[@]}"
+    do
+        if [ "$inparam" = $argToCheck ]; then
+            # The argument was found
+            # Return next element if there is more elements
+            [ $(( inParamTotalElements - 1 )) -gt $currentElement ] &&
+                nextElementId=$(( currentElement + 1 )) &&
+                echo "${inParamArray[currentElement + 1]}"
+            return 0
+        fi
+        currentElement=$(( currentElement + 1 ))
+    done
+
+    # Not found
+    return 1
+}
+
+function verbosetracer () #@ USAGE verbosetracer verboseFlag traceString
+{
+    verboseFlag=$1
+    traceString=$2
+
+    [ $verboseFlag -ne 0 ] &&
+        return 0
+
+    echo -e "${CYAN}$traceString${NC}"
+    return 0
+}
+
+function column_ansi () #@ USAGE column_ansi parameters
+{
+    while read -r data; do
+        echo " $data"
+    done
+    return 0
+}
+
+function putToFile () #@ USAGE putToFile filePath
+{
+    filePath=$1
+    while read -r data; do
+        echo "$data" >> "$filePath"
+    done
+    return 0
+}
+
+function getFromFile () #@ USAGE getFromFile filePath
+{
+    filePath=$1
+    [ -f $filePath ] &&
+        fileContent=$(<"$filePath") &&
+        echo "$fileContent" &&
+        return 0
+    return 1
+}
+
+function isFileExist () #@ USAGE isFileExist filePath
+{
+    filePath=$1
+
+    [ -f $filePath ] &&
+        return 0
+    return 1
+}
+
+function isDirExist () #@ USAGE isDirExist dirPath
+{
+    dirPath=$1
+
+    [ -d $dirPath ] &&
+        return 0
+    return 1
+}

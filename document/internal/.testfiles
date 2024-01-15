@@ -1,0 +1,4 @@
+arrTestList=( 'markdown' )
+
+MARKDOWN_FILES=( 'index.md' )
+MARKDOWN_STRICT_FILES=( )

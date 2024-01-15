@@ -1,0 +1,13 @@
+#: The repo package
+#:
+#: File : .packagelist
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#
+#-------------------------------------------------
+subProject_1=( 'Unit2Package' 'Block1/Unit2' 'M' 'www-data:www-data' )
+arrSubProjects=( subProject_1 )

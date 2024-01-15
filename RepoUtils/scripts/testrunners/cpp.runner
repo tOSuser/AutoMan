@@ -1,0 +1,35 @@
+#: Cpp test runner
+#:
+#: File : cpp.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+# check cpp environment requirements
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupCppEnvList=( 'cpp' )
+	for iSetupEnv in "${arrSetupCppEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+return 0

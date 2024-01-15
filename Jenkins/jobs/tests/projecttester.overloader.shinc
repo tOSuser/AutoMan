@@ -1,0 +1,106 @@
+#: Overloading values and data to test a script
+#:
+#: File : projecttester.overloader.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#  TESTORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#  packagesFolder
+#  packagesList
+#  reportonlyFlag
+#  upgradeFlag
+#  verboseMode
+#
+#-------------------------------------------------
+## Import libraries
+[ -f $TESTORIGINALSCRIPT_PATH/test.mock.shinc ] &&
+	. $TESTORIGINALSCRIPT_PATH/test.mock.shinc
+
+#-------------------------------------------------
+# Test data to overload packagebuilder.sh
+function runshellcmd () #@ USAGE runshellcmd parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+    if [ $jenkinsjobmode -eq 0 ]; then
+        cmdstr="unshare -mr chroot $CHROOT_PATH sh -c \"$1\""
+    else
+        cmdstr="$1"
+    fi
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "runshellcmd :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function runtrun () #@ USAGE runtrun parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+    runshellcmd "${@:4}"
+    testResult=$?
+
+    TOTALRANTESTUNITS=$(($TOTALRANTESTUNITS+1))
+    if [ $testResult -ne 0 ]; then
+        TOTALRANTESTFAILED=$(($TOTALRANTESTFAILED+1))
+    else
+        TOTALRANTESTPASSED=$(($TOTALRANTESTPASSED+1))
+    fi
+
+	mockCallReturn "${FUNCNAME[0]}" $testResult
+	return $?
+}
+
+function affectedByCommit () #@ USAGE affectedByCommit parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+    if [ $jenkinsjobmode -eq 0 ]; then
+        cmdstr="unshare -mr chroot $CHROOT_PATH sh -c \"$1\""
+    else
+        cmdstr="$1"
+    fi
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "runstrun :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function putToFile () #@ USAGE putToFile filePath parameters
+{
+	filePath=$1
+	mockCallCounter "${FUNCNAME[0]}"
+
+	while read -r data; do
+		echo "$data > $filePath"
+	done
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "putToFile :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function isFileExist () #@ USAGE isFileExist parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "isFileExist :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function isDirExist () #@ USAGE isDirExist parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "isDirExist :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+echo -e "****Runing in a test mode"
+echo -e "-------------------------------------------------"

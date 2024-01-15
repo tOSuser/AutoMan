@@ -1,0 +1,6 @@
+arrTestList=( 'python' )
+
+PYTHON_BLOCK_TEST_FILES=( 'BlockTestCommon' )
+PYTHON_UNIT_TEST_FILES=( 'TestCommon' )
+PHP_BLOCK_TEST_FILES=(  )
+PHP_UNIT_TEST_FILES=(  )

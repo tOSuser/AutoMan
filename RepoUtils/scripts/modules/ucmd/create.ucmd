@@ -1,0 +1,105 @@
+#: ccrun command : create
+#:
+#: File : create.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# global variables:
+#  ORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#
+# Local variables:
+#  runParamArray
+#---------------------------------------
+templatesPath=.templates
+
+#*
+#*  @description    check a unit can be created
+#*
+#*  @param			unitName
+#*  @param			unitType
+#*  @param			repoUtilsPath
+#*  @param			projectRoot
+#*  @param			currentPath
+#*
+#*  @return			0 if unit can be created, > 0 if not
+#*
+function isUnitCreateable () #@ USAGE isUnitCreateable unitName unitType repoUtilsPath projectRoot currentPath
+{
+	unitName=$1
+	unitType=$2
+	repoUtilsPath=$3
+	projectRoot=$4
+	currentPath=$5
+
+	if [ -d "$currentPath/$unitName" ] ||
+		[ -f "$currentPath/$unitName" ]; then
+		echo -e "${RED}'$unitName' already exists.${NC}"
+		return 1
+	fi
+
+	[ ! -d "$projectRoot/$templatesPath/$unitType" ] &&
+		[ ! -d "$repoUtilsPath/templates/$unitType" ] &&
+			echo -e "${RED} No template was found for type '$unitType'.${NC}" &&
+			return 1
+
+	# No problem to create the unit
+	return 0
+}
+
+#*
+#*  @description    create a unit if it can be created
+#*
+#*  @param			unitName
+#*  @param			unitType
+#*  @param			repoUtilsPath
+#*  @param			projectRoot
+#*  @param			currentPath
+#*
+#*  @return			0 if unit can be created, > 0 if not
+#*
+function createUnit () #@ USAGE createUnit unitName unitType repoUtilsPath projectRoot currentPath
+{
+	unitName=$1
+	unitType=$2
+	repoUtilsPath=$3
+	projectRoot=$4
+	currentPath=$5
+
+	isUnitCreateableResult=$(isUnitCreateable $unitName $unitType $repoUtilsPath $projectRoot $currentPath)
+	[ $? -ne 0 ] &&
+		echo -e "$isUnitCreateableResult" &&
+		return 1
+
+	mkdir -p "$currentPath/$unitName"
+	[ $? -ne 0 ] &&
+		return 1
+
+	currentTemplatePath="$projectRoot/$templatesPath/$unitType"
+	[ ! -d "$currentTemplatePath" ] &&
+		currentTemplatePath="$repoUtilsPath/templates/$unitType"
+
+	cp -r $currentTemplatePath/. $currentPath/$unitName
+	[ $? -ne 0 ] &&
+		return 1
+
+	echo "Creating '$unitName' done"
+	return 0
+}
+
+
+if [ ${#runParamArray[@]} -gt 0 ]; then
+
+	unitName="${runParamArray[0]}"
+	currenUnitType='unit'
+	[ ${#runParamArray[@]} -gt 0 ] &&
+		currenUnitType="${runParamArray[1]}"
+	createUnitResult=$(createUnit $unitName $currenUnitType $REPOUTILS_PATH $PROJECTROOT_PATH $currentPath)
+	createUnitexitCode=$?
+	echo -e "$createUnitResult"
+	return $createUnitexitCode
+else
+	echo -e "${BLUE}USAGE : ccrun create <name> <block|unit|python|....>${NC}" &&
+	return 1
+fi

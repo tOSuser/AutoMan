@@ -1,0 +1,65 @@
+#: Template test runner
+#:
+#: File : template.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+templatequietmode='NO'
+templateTestFiles=(  )
+
+# check template environment requirements
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupTemplateEnvList=( 'template' )
+	for iSetupEnv in "${arrSetupTemplateEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	templateTestFiles=${TEMPLATE_UNIT_TEST_FILES[@]} && templatequietmode='YES'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	templateTestFiles=${TEMPLATE_UNIT_TEST_FILES[@]} && templatequietmode='NO'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	templateTestFiles=${TEMPLATE_BLOCK_TEST_FILES[@]} && templatequietmode='YES'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	templateTestFiles=${TEMPLATE_BLOCK_TEST_FILES[@]} && templatequietmode='NO'
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+for currenttestfile in ${templateTestFiles[@]}
+do
+	[[ $templatequietmode = 'NO' ]] &&
+		echo -e "\nMode : ${currenttestfile}"
+
+	if [ $templatequietmode = 'NO' ]; then
+		dumpyTestRunner ${currenttestfile}
+	else
+		dumpyTestRunner ${currenttestfile} 2>/dev/null
+	fi
+done
+
+return 0

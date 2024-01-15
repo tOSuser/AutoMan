@@ -1,0 +1,98 @@
+#: ccrun command : checkattrib
+#:
+#: File : checkattrib.ucmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# global variables:
+#  ORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#
+# Local variables:
+#  runParamArray
+#---------------------------------------
+#*
+#*  @description    Check a file is covered by ignored lists or not
+#*
+#*  @param			fileFullPath
+#*
+#*  @return			1 if it covered by ignored lists, 0 if not
+#*
+function isItInIgnoreLists () #@ USAGE isItInIgnoreLists fileFullPath
+{
+	ignoreExtentionArr=(  )
+	ignoreFilesArr=(  )
+	ignoreFolders=(  )
+	ignoreFileAttribeList='ignoreattrib'
+
+	fileFullPath=$1
+	fileName=$(basename $fileFullPath)
+	fileNameWithoutExt=${fileName%.*}
+	fileExtention=${fileName#$fileNameWithoutExt.}
+
+	[ -f "$ORIGINALSCRIPT_PATH/modules/ucmd/${ignoreFileAttribeList}.ucmdinc" ] &&
+		. $ORIGINALSCRIPT_PATH/modules/ucmd/${ignoreFileAttribeList}.ucmdinc
+	[ -f "$ORIGINALSCRIPT_PATH/../.${ignoreFileAttribeList}" ] &&
+		. $ORIGINALSCRIPT_PATH/../.${ignoreFileAttribeList}
+	[ $(realpath "$SCRIPT_PATH/.${ignoreFileAttribeList}") != $(realpath $ORIGINALSCRIPT_PATH/../.${ignoreFileAttribeList}) ] &&
+		[ -f "$SCRIPT_PATH/.${ignoreFileAttribeList}" ] &&
+			. $SCRIPT_PATH/.${ignoreFileAttribeList}
+
+	for igonreFolder in ${ignoreFolders[@]};
+	do
+		if [[ "$fileFullPath" ==  *"$igonreFolder"* ]]; then
+			return 1
+		fi
+	done
+
+	for igonreFile in ${ignoreFilesArr[@]};
+	do
+		[ "$fileName" == "$igonreFile" ] &&
+			return 1
+	done
+
+	for igonreFileExtention in ${ignoreExtentionArr[@]};
+	do
+		[ "$fileExtention" == "$igonreFileExtention" ] &&
+			return 1
+	done
+
+	return 0
+}
+
+totalWrongAttribute=0
+fixationCommandStr="ccrun fixattrib"
+if [ $gitcommitmode -eq 0 ]; then
+	fixationCommandStr="$fixationCommandStr -gitcommit"
+	if [ $githookmode -eq 0 ]; then
+		fileList=( $(git diff --cached --name-only | tr '\n' ' ') )
+	else
+		fileList=( $(git diff --name-only | tr '\n' ' ') )
+	fi
+	gitRootPath=$(git rev-parse --show-toplevel)
+else
+	fileList=( $(find $currentPath -type f) )
+fi
+
+for fileEntry in ${fileList[@]};
+do
+	[ -d $fileEntry ] &&
+		continue
+
+	[ $gitcommitmode -eq 0 ] &&
+		fileEntry="$gitRootPath/$fileEntry"
+
+	isItInIgnoreListsResult=$(isItInIgnoreLists $fileEntry)
+	[ $? -eq 0 ] &&
+		[ -x $fileEntry ] &&
+			totalWrongAttribute=$(( totalWrongAttribute + 1 )) &&
+			echo -e "$fileEntry"
+done
+
+echo "Files with wrong attribute : $totalWrongAttribute"
+[ "$totalWrongAttribute" -ne 0 ] &&
+	echo "To fix wrong attributes : '$fixationCommandStr'" &&
+	return 1
+
+return 0

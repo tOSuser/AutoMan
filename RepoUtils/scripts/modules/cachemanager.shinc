@@ -1,0 +1,24 @@
+#: Cache functions
+#:
+#: File : cachemanager.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+
+#*
+#*  @description    Remove tempelory folder
+#*
+#*  @param			keepTempFlag
+#*  @param			tempPath
+#*
+#*  @return			0
+#*
+function RemoveTempFolder () #@ USAGE keepTempFlag tempPath
+{
+	keepTempFlag=$1
+	tempPath=$2
+	[ $keepTempFlag -ne 0 ] &&
+		rm -r $tempPath 2>/dev/null
+	return 0
+}

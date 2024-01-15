@@ -1,0 +1,21 @@
+# Ignore files and file types
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+build/
+bin/
+pack/
+
+# misc
+*.pyc
+*.log
+*.tmp
+*.apk
+.DS_Store

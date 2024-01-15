@@ -1,0 +1,99 @@
+#: A set of checkers used by the patch-set checker
+#:		to verify the commit
+#:
+#: File : .codechecker
+#
+#
+# Copyright (c) 2022 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Environment variables passd by Gerrit trigger :
+#   GERRIT_EVENT_TYPE
+#   GERRIT_EVENT_HASH
+#   GERRIT_CHANGE_WIP_STATE
+#   GERRIT_CHANGE_PRIVATE_STATE
+#   GERRIT_BRANCH
+#   GERRIT_TOPIC
+#   GERRIT_CHANGE_NUMBER
+#   GERRIT_CHANGE_ID
+#   GERRIT_PATCHSET_NUMBER
+#   GERRIT_PATCHSET_REVISION
+#   GERRIT_REFSPEC
+#   GERRIT_PROJECT
+#   GERRIT_CHANGE_SUBJECT
+#   GERRIT_CHANGE_COMMIT_MESSAGE
+#   GERRIT_CHANGE_URL (link)
+#   GERRIT_CHANGE_OWNER
+#   GERRIT_CHANGE_OWNER_NAME
+#   GERRIT_CHANGE_OWNER_EMAIL
+#   GERRIT_PATCHSET_UPLOADER
+#   GERRIT_PATCHSET_UPLOADER_NAME
+#   GERRIT_PATCHSET_UPLOADER_EMAIL
+#   GERRIT_NAME
+#   GERRIT_HOST
+#   GERRIT_PORT
+#   GERRIT_SCHEME
+#   GERRIT_VERSION
+#
+#
+# Environment variables passd by Jenkins:
+#   JENKINS_URL
+#   PWD
+#   WORKSPACE
+#   RUN_DISPLAY_URL
+#   RUN_CHANGES_DISPLAY_URL
+#   RUN_TESTS_DISPLAY_URL
+#   NODE_NAME
+#   JOB_BASE_NAME
+#   JOB_URL
+#   BUILD_ID
+#   BUILD_NUMBER
+#   BUILD_URL
+#
+# Local variables:
+#   PROJECT_PATH
+#   UPDATEDFILES_ARR
+#   PATCHSET_TOTALFILES
+#   PATCHSET_TOTALENVFILES
+#   CHROOT_PATH
+#   CHROOT_WORKSPACE
+#   JOB_WORKSPACE
+#   PROJECT_WORKSPACE
+#   exitCode
+#   currentCommand
+#   currentCommandParamArray
+#
+#   runshellcmd()
+#
+# Runner variables:
+#   UNIT_TEST_CMD
+#   BLOCK_TEST_CMD
+#-------------------------------------------------
+unitName=Block1
+subProjectName=Unit1
+subProjectPath=$unitName/$subProjectName
+echo "---$subProjectPath"
+
+currentPath="$PROJECT_PATH/$subProjectPath"
+shellPath="$PROJECT_WORKSPACE/$subProjectPath"
+if [ "$currentCommand" != "$CCRUNCMD_RUNTEST" ]; then
+	echo $currentCommand
+	verbosetracer $verbosemode "currentPath : $currentPath"
+	verbosetracer $verbosemode "shellPath : $shellPath"
+
+    runCommand $currentCommand $currentPath $shellPath ${currentCommandParamArray[@]}
+    return $?
+else
+	runshellcmd "mkdir -p $shellPath/bin"
+
+	affectedByCommit $PROJECT_PATH $subProjectPath $unitName
+	if [ $? -eq 0 ]; then
+		runtrun $unitName $subProjectPath "UNIT" "$UNIT_TEST_CMD -path $shellPath"
+		[ $? -ne 0 ] &&
+			return 1
+		runtrun $unitName $subProjectPath "BLOCK" "$BLOCK_TEST_CMD -path $shellPath"
+		[ $? -ne 0 ] &&
+			return 1
+	fi
+fi
+return 0

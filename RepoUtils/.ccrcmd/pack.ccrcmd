@@ -1,0 +1,57 @@
+#: local ccrun command : pack
+#:
+#: File : pack.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# Local variables:
+#  commandToRun
+#  currentPath
+#  runParamArray
+#---------------------------------------
+TRUN_CMD='trun'
+
+BUILD_ARGUMENTS='-keep -b'
+[ $productmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -product"
+[ $verbosemode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -verbose"
+[ $rawmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -rawmode"
+[ $debugmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS debug"
+[ $debugmode -ne 0 ] && [ $infomode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS info"
+
+echo -e "${BLUE}Run local pack builder${NC}"
+
+packFolder=pack
+packSource_1=( 'scripts/.' '' )
+packSource_2=( '../BinBuilder/src/.' 'BinBuilder' )
+packSource_3=( '../BinBuilder/src/runbb.py' '' )
+packSource_4=( '../Common/python/lib/nxLogger' 'BinBuilder' )
+packSource_5=( '../Common/python/lib/nxTracer' 'BinBuilder' )
+packSource_6=( '../Common/python/common/src/ModuleLoader.py' 'BinBuilder' )
+packSource_7=( '../Common/python/AddonsManager/src/AddonBase.py' 'BinBuilder' )
+packSource_8=( '../Common/python/AddonsManager/src/AddonsManager.py' 'BinBuilder' )
+arrPackSources=( packSource_1 packSource_2 packSource_3 packSource_4 packSource_5 packSource_6 packSource_7 packSource_8 )
+#---------------------------------------
+# Main
+#---------------------------------------
+nextitem=$(hasArgument "-fixattrib" "${runParamArray[@]}")
+[ $? -eq 0 ] &&
+	runUnitCommand fixattrib $shellPath $currentPath
+
+runshellcmd "[ -d \"$shellPath/$packFolder\" ] &&
+	rm -r \"$shellPath/$packFolder\""
+runshellcmd "mkdir \"$shellPath/$packFolder\""
+
+for packSource in ${arrPackSources[@]}
+do
+	eval itemSource='"${'$packSource'[0]}"'
+	eval itemTarget='"${'$packSource'[1]}"'
+	runshellcmd "cp -r --verbose $shellPath/$itemSource $shellPath/$packFolder/$itemTarget"
+done
+
+echo -e "${BGGREEN}${WHITE}A package of needed files was built in 'pack' folder ${NC}"

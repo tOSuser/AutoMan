@@ -1,0 +1,101 @@
+#: Bash test runner
+#:
+#: File : bash.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+# check bash environment requirements
+BASH_FILE=bash
+bashquietmode='NO'
+bashTestFiles=(  )
+LL_INFO=2
+LL_DEBUG=3
+tracemode=$LL_INFO
+
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupBashEnvList=( 'bash' )
+	for iSetupEnv in "${arrSetupBashEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+bashCompilerCmd=$BASH_FILE
+pythonCompilerCmd='python'
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	bashTestFiles=${SH_UNIT_TEST_FILES[@]} && bashquietmode='YES'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	bashTestFiles=${SH_UNIT_TEST_FILES[@]} && bashquietmode='NO'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	bashTestFiles=${SH_BLOCK_TEST_FILES[@]} && bashquietmode='YES'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	bashTestFiles=${SH_BLOCK_TEST_FILES[@]} && bashquietmode='NO'
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "-info" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_INFO
+nextArgument=$(hasArgument "-debug" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_DEBUG
+
+[[ $bashquietmode = 'NO' ]] &&
+	echo "Mode : ${bashCompilerCmd}"
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+if [ $bashquietmode = 'NO' ]; then
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+else
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"  >>/dev/null
+fi
+
+[ $? -ne 0 ] &&
+	echo "Error : compiling error" &&
+		return 1
+
+export TRUN_TRACEMODE=$tracemode
+
+for currenttestfile in ${bashTestFiles[@]}
+do
+echo $currenttestfile
+	[[ $bashquietmode = 'NO' ]] &&
+		echo -e "\nMode : ${bashCompilerCmd} - ${currenttestfile}"
+
+	if [ $bashquietmode = 'NO' ]; then
+		verboserun $verbosemode "$bashCompilerCmd \"${SCRIPT_PATH}/${CODE_PATH}/${currenttestfile}.test.sh\""
+	else
+		verboserun $verbosemode "$bashCompilerCmd \"${SCRIPT_PATH}/${CODE_PATH}/${currenttestfile}.test.sh\"" 2>/dev/null
+	fi
+
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+		return 1
+done
+
+unset TRUN_TRACEMODE
+return 0

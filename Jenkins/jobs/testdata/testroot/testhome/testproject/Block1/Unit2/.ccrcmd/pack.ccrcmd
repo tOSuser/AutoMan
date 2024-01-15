@@ -1,0 +1,61 @@
+#: local ccrun command : pack
+#:
+#: File : pack.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# Local variables:
+#  commandToRun
+#  currentPath
+#  runParamArray
+#---------------------------------------
+TRUN_CMD='trun'
+
+BUILD_ARGUMENTS='-keep -b'
+[ $productmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -product"
+[ $verbosemode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -verbose"
+[ $rawmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -rawmode"
+[ $debugmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS debug"
+[ $debugmode -ne 0 ] && [ $infomode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS info"
+
+echo -e "${BLUE}Run local pack builder${NC}"
+
+packFolder=pack
+packSource_1=( 'src/*' '' )
+packSource_2=( '../../CommonUnits/python/lib/*'  '' )
+packSource_3=( '../common/src/*'  '' )
+packSource_4=( '../../CommonUnits/python/common/src/*'  '' )
+packSource_5=( 'readme.md'  '' )
+arrPackSources=( packSource_1 packSource_2 packSource_3 packSource_4 packSource_5 )
+#---------------------------------------
+# Main
+#---------------------------------------
+buildExitcode=0
+runshellcmd "[ -d \"$shellPath/$packFolder\" ] &&
+	rm -r \"$shellPath/$packFolder\""
+runshellcmd "mkdir \"$shellPath/$packFolder\""
+
+for packSource in ${arrPackSources[@]}
+do
+	eval itemSource='"${'$packSource'[0]}"'
+	eval itemTarget='"${'$packSource'[1]}"'
+	runshellcmd "cp -rf --verbose $shellPath/$itemSource $shellPath/$packFolder/$itemTarget"
+	[ $? -ne 0 ] &&
+		buildExitcode=1 &&
+		echo -e "${BGRED}${WHITE}An error occurred during coping '$itemSource'${NC}" &&
+		break
+done
+
+[ $buildExitcode -eq 0 ] &&
+	runshellcmd "mkdir $shellPath/$packFolder/db"
+
+[ $buildExitcode -eq 0 ] &&
+	echo -e "${BGGREEN}${WHITE}A package of needed files was built in 'pack' folder ${NC}"
+
+return $buildExitcode

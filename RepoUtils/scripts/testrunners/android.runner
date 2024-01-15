@@ -1,0 +1,127 @@
+#: Android test runner
+#:
+#: File : android.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+androidquietmode='NO'
+androidTestFiles=(  )
+tracemode=$LL_INFO
+
+# check android environment requirements
+#if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupAndroidEnvList=( 'java' 'android' )
+	for iSetupEnv in "${arrSetupAndroidEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+#fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+pythonCompilerCmd='python'
+androidTestType=unit
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	androidTestType=unit && androidquietmode='YES'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	androidTestType=unit && androidquietmode='NO'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	androidTestType=block && androidquietmode='YES'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	androidTestType=block && androidquietmode='NO'
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "-info" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_INFO
+nextArgument=$(hasArgument "-debug" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_DEBUG
+
+[[ $androidquietmode = 'NO' ]] && echo "Mode : $JAVAC"
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+if [ $androidquietmode = 'NO' ]; then
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+else
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+fi
+
+[ $? -ne 0 ] &&
+	$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+	echo "Error : compiling error" &&
+	return 1
+
+for iAndroidProject in "${arrAndroidProjectList[@]}"
+do
+	testSourcePath=$SCRIPT_PATH/$CODE_PATH/$iAndroidProject/tests
+	sourcePath=$SCRIPT_PATH/$CODE_PATH/$iAndroidProject/src
+	resourcePath=$SCRIPT_PATH/$CODE_PATH/$iAndroidProject/res/
+
+	classPath=.
+	classPath="$classPath":"$SCRIPT_PATH/$CODE_PATH/$iAndroidProject"
+	for currentlibfile in ${androidLibs[@]}
+	do
+		classPath="$classPath":"$currentlibfile"
+	done
+
+	verboserun $verbosemode "$AAPT package -f -m -J \"$SCRIPT_PATH/$CODE_PATH/$iAndroidProject\" -M $SCRIPT_PATH/$CODE_PATH/$iAndroidProject/AndroidManifest.xml -S $resourcePath -I $androidJarFile"
+
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : Android packaging error${NC}" &&
+		return 1
+
+	verboserun $verbosemode "javac -d \"$SCRIPT_PATH/$CODE_PATH/$iAndroidProject\" -cp \"$classPath\" $(find $sourcePath/* | grep .java)"
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : Sources - compiling error${NC}" &&
+		return 1
+
+	 verboserun $verbosemode "javac -d \"$SCRIPT_PATH/$CODE_PATH/$iAndroidProject\" -cp \"$classPath\" $(find $testSourcePath/* | grep .java)"
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : Tests - compiling error${NC}" &&
+		return 1
+
+	[[ "$androidTestType" = "unit" ]] && eval androidTestFiles='${'ANDROID_UNIT_TEST_FILES_$iAndroidProject'[@]}'
+	[[ "$androidTestType" = "block" ]] && eval androidTestFiles='${'ANDROID_BLOCK_TEST_FILES_$iAndroidProject'[@]}'
+
+	for currenttestfile in ${androidTestFiles[@]}
+	do
+		[[ $androidquietmode = 'NO' ]] && echo -e "\nMode : $JAVAC - ${currenttestfile}"
+
+		if [ $androidquietmode = 'NO' ]; then
+			verboserun $verbosemode "$JAVA -cp "$classPath" org.junit.runner.JUnitCore \"$currenttestfile\""
+		else
+			verboserun $verbosemode "$JAVA -cp "$classPath" org.junit.runner.JUnitCore \"$currenttestfile\"" 2>/dev/null
+		fi
+		[ $? -ne 0 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+			return 1
+	done
+done
+return 0

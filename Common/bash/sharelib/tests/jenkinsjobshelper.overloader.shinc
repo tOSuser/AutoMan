@@ -1,0 +1,27 @@
+#: Overloading values and data to test a script
+#:
+#: File : projecttester.overloader.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#  TESTORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#  packagesFolder
+#  packagesList
+#  reportonlyFlag
+#  upgradeFlag
+#  verboseMode
+#
+#-------------------------------------------------
+## Import libraries
+[ -f $TESTORIGINALSCRIPT_PATH/test.mock.shinc ] &&
+	. $TESTORIGINALSCRIPT_PATH/test.mock.shinc
+
+#-------------------------------------------------
+# Test data to overload packagebuilder.sh
+
+echo -e "****Runing in a test mode"
+echo -e "-------------------------------------------------"

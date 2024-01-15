@@ -1,0 +1,70 @@
+#: Arguments functions
+#:
+#: File : arguments.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+
+#*
+#*  @description    check an argumants' array for an argumant
+#*
+#*  @param			inParamArray
+#*  @param			argToCheck
+#*
+#*  @return			0 if Found, > 0 if it was not found
+#*
+function hasArgument () #@ USAGE hasArgument argToCheck param1 param2 ...
+{
+	argToCheck=$1
+	inParamArray=($@)
+	inParamArray=("${inParamArray[@]:1}")
+	inParamTotalElements=${#inParamArray[@]}
+
+	currentElement=0
+	for inparam in "${inParamArray[@]}"
+	do
+		if [ "$inparam" = $argToCheck ]; then
+			# The argument was found
+			# Return next element if there is more elements
+			[ $(( inParamTotalElements - 1 )) -gt $currentElement ] &&
+				nextElementId=$(( currentElement + 1 )) &&
+				echo "${inParamArray[currentElement + 1]}"
+	    	return 0
+	    fi
+	    currentElement=$(( currentElement + 1 ))
+	done
+
+	# Not found
+	return 1
+}
+
+#*
+#*  @description    check an argumants' array for the first argument
+#*
+#*  @param			defaultReturn
+#*  @param			inParamArray
+#*
+#*  @return			0 if Found, > 0 if it was not found
+#*
+function getFirstArgument () #@ USAGE getFirstArgument defaultReturn param1 param2 ...
+{
+	defaultReturn=$1
+	if [ $# -gt 1 ]; then
+		inParamArray=($@)
+		inParamArray=("${inParamArray[@]:1}")
+
+		currentElement=0
+		for param in ${inParamArray[@]}
+		do
+			currentElement=$(($currentElement+1))
+			[[ "$param" != -* ]] &&
+				echo "$param" &&
+				return $currentElement
+		done
+	fi
+
+	# No element was found
+	echo "$defaultReturn"
+	return 0
+}

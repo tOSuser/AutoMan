@@ -1,0 +1,76 @@
+#: verbose traces functions
+#:
+#: File : verbose.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+
+#*
+#*  @description    print out extra traces
+#*
+#*  @param			verboseMode
+#*  @param			traceString
+#*
+#*  @return			0 if Success, > 0 if it faces a failure
+#*
+verboseRunStr="Run:"
+
+function verbosetracer () #@ USAGE verbosetracer verboseMode traceString
+{
+	verboseMode=$1
+	traceString=$2
+
+	[ $verbosemode -ne 0 ] &&
+        return 0
+
+	echo -e "${CYAN}$traceString${NC}"
+	return 0
+}
+
+#*
+#*  @description    run a shell command and print verbose traces
+#						if it's been activated
+#*
+#*  @param			verboseMode
+#*  @param			commandStr
+#*
+#*  @return			0 if Success, > 0 if it faces a failure
+#*
+function verboserun() #@ USAGE verboserun verboseMode commandStr
+{
+	verboseMode=$1
+	commandStr=$2
+
+	[ $verbosemode -eq 0 ] &&
+        echo -e "${BLUE}$verboseRunStr ${YELLOW}$commandStr${NC}"
+
+	eval $commandStr
+	return $?
+}
+
+#*
+#*  @description    run a shell command with a specefic trying times
+#*						and print verbose traces if it's been activated
+#*
+#*  @param			verboseMode
+#*  @param			tryingTimes
+#*  @param			commandStr
+#*
+#*  @return			0 if Success, > 0 if it faces a failure
+#*
+function verboserunx() #@ USAGE verboserunx verboseMode tryingTimes commandStr
+{
+	verboseMode=$1
+	tryingTimes=$2
+	commandStr=$3
+
+	for ((i = 1 ; i <= $tryingTimes ; i++)); do
+		echo -e "${RED}TIMES($i)${NC}"
+		verboserun $verboseMode "$commandStr"
+		[ $? -eq 0 ] &&
+			return 0
+	done
+
+	return $1
+}

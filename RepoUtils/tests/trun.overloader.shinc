@@ -1,0 +1,56 @@
+#: Overloading values and data to test a script
+#:
+#: File : trun.overloader.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#  TESTORIGINALSCRIPT_PATH
+#  SCRIPT_PATH
+#  packagesFolder
+#  packagesList
+#  reportonlyFlag
+#  upgradeFlag
+#  verboseMode
+#
+#-------------------------------------------------
+## Import libraries
+[ -f $TESTORIGINALSCRIPT_PATH/test.mock.shinc ] &&
+	. $TESTORIGINALSCRIPT_PATH/test.mock.shinc
+
+HOME=$TESTORIGINALSCRIPT_PATH
+#-------------------------------------------------
+# Test data to overload trun
+function dumpyTestRunner () # @ USAGE templateTestRunner testcase
+{
+	testcase=$1
+	mockCallCounter "${FUNCNAME[0]}"
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" $testcase)
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+
+function isFileExist () #@ USAGE isFileExist parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "isFileExist :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+function isDirExist () #@ USAGE isDirExist parameters
+{
+	mockCallCounter "${FUNCNAME[0]}"
+
+	echo $(mockCallOutput "${FUNCNAME[0]}" "isDirExist :  \"$1\"")
+	mockCallReturn "${FUNCNAME[0]}" 0
+	return $?
+}
+
+echo -e "****Runing in a test mode"
+echo -e "-------------------------------------------------"

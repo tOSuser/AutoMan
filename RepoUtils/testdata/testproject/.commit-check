@@ -1,0 +1,19 @@
+#: Pre-commit checker to use within git hook `pre-commit`
+#:
+#: File : .commit-check
+#: Description : The code here run to check commited files
+#:		before commiting.
+#:		The code set exitCode=1 if the check result is false
+#:		Otherwise exitCode=0 (or doing nothing).
+#: OBS! : This file should be located in the root of the repo.
+#
+#
+# Copyright (c) 2022 Nexttop (nexttop.se)
+# Local variables:
+#  exitcode
+#---------------------------------------
+$(type ccrun)
+exitcode=$?
+[ $exitcode-eq 0 ] &&
+	ccrun checkattrib -gitcommit &&
+	exitcode=$?

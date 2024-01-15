@@ -1,0 +1,241 @@
+#!/bin/bash
+#: Test runner
+#:
+#: File : trun
+#
+#
+# Copyright (c) 2022 Nexttop (nexttop.se)
+#---------------------------------------
+# Helper functions
+#---------------------------------------
+function lookForArgument () #@ USAGE hasArgument argToCheck param1 param2 ...
+{
+    argToCheck=$1
+    inParamArray=($@)
+    inParamArray=("${inParamArray[@]:1}")
+    inParamTotalElements=${#inParamArray[@]}
+
+    currentElement=0
+    for inparam in "${inParamArray[@]}"
+    do
+        if [ "$inparam" = $argToCheck ]; then
+            # The argument was found
+            # Return next element if there is more elements
+            [ $(( inParamTotalElements - 1 )) -gt $currentElement ] &&
+                nextElementId=$(( currentElement + 1 )) &&
+                echo "${inParamArray[currentElement + 1]}"
+            return 0
+        fi
+        currentElement=$(( currentElement + 1 ))
+    done
+
+    # Not found
+    return 1
+}
+
+function putToFile () #@ USAGE putToFile filePath
+{
+    filePath=$1
+    while read -r data; do
+        echo "$data" >> "$filePath"
+    done
+    return 0
+}
+
+function column_ansi () #@ USAGE column_ansi parameters
+{
+    while read -r data; do
+        echo -e "$data"
+    done
+    return 0
+}
+
+function isFileExist () #@ USAGE isFileExist filePath
+{
+    filePath=$1
+
+    [ -f $filePath ] &&
+        return 0
+    return 1
+}
+
+function isDirExist () #@ USAGE isDirExist dirPath
+{
+    dirPath=$1
+
+    [ -d $dirPath ] &&
+        return 0
+    return 1
+}
+
+# Functions
+#---------------------------------------
+
+function dumpyTestRunner () #@ USAGE templateTestRunner testcase
+{
+	return 0
+}
+
+function trun () #@ USAGE trun param1 param2 ...
+{
+    nextitem=$(lookForArgument "-product" "$@")
+    productmode=$?
+    nextitem=$(lookForArgument "-verbose" "$@")
+    verbosemode=$?
+    nextitem=$(lookForArgument "-keep" "$@")
+    keeptempfiles=$?
+    nextitem=$(lookForArgument "-rawmode" "$@")
+    rawmode=$?
+    nextitem=$(lookForArgument "-debug" "$@")
+    debugmode=$?
+    nextitem=$(lookForArgument "-info" "$@")
+    infomode=$?
+
+	jenkinsjobmode=1
+	colormode=0
+    if [ $rawmode -eq 0 ]; then
+        colormode=1
+    fi
+
+    ## Import libraries
+    repoUtilssHome=$HOME
+    nextitem=$(lookForArgument "-utilspath" "$@")
+    manualUtilsPathMode=$?
+    [ $manualUtilsPathMode -eq 0 ] &&
+        repoUtilssHome=$nextitem
+
+    nodeModulesHome=$repoUtilssHome
+    nextitem=$(lookForArgument "-nodepath" "$@")
+    [ $? -eq 0 ] &&
+        nodeModulesHome=$nextitem
+
+    testsReportFile=''
+    nextitem=$(lookForArgument "-reportfile" "$@")
+    [ $? -eq 0 ] &&
+        testsReportFile=$nextitem
+
+    unitName='-'
+    nextitem=$(lookForArgument "-unitname" "$@")
+    [ $? -eq 0 ] &&
+        unitName=$nextitem
+
+    unitPath='-'
+    nextitem=$(lookForArgument "-unitpath" "$@")
+    [ $? -eq 0 ] &&
+        unitPath=$nextitem
+
+    testType='-'
+    nextitem=$(lookForArgument "-u" "$@")
+    [ $? -eq 0 ] &&
+        testType='UNIT'
+
+    nextitem=$(lookForArgument "-b" "$@")
+    [ $? -eq 0 ] &&
+        testType='BLOCK'
+
+    nextitem=$(lookForArgument "-projectroot" "$@")
+    manualProjectRootMode=$?
+    [ $manualProjectRootMode -eq 0 ] &&
+        PROJECTROOT_PATH=$nextitem
+
+    if [ $manualProjectRootMode -ne 0 ]; then
+        PROJECTROOT_PATH=$(git rev-parse --show-toplevel)
+        [ $? -ne 0 ] &&
+            echo "$PROJECTROOT_PATH" &&
+            return 1
+    fi
+
+    REPOUTILS_PATH=$repoUtilssHome/repoutils
+    ORIGINALSCRIPT_PATH=$REPOUTILS_PATH
+    SCRIPT_PATH=`pwd`
+
+    # Import heleper modules
+    [ ! -d $ORIGINALSCRIPT_PATH/modules ] &&
+        echo "modules can be not loaded ($ORIGINALSCRIPT_PATH/modules)!" &&
+        return 1
+
+	modulesFileArr=($ORIGINALSCRIPT_PATH/modules/*.shinc)
+	for iModule in "${modulesFileArr[@]}"
+	do
+        [ $verbosemode -eq 0 ] &&
+            echo "load module $iModule!"
+		. $iModule
+	done
+
+	nextArgument=$(lookForArgument "-path" "$@")
+	if [ $? -eq 0 ] && [ ! -z "$nextArgument" ]; then
+		SCRIPT_PATH=$nextArgument
+	fi
+
+    isFileExist $SCRIPT_PATH/.sourcepaths
+    sourcepathsFileExist=$?
+    isFileExist $SCRIPT_PATH/.testfiles
+    testfilesFileExist=$?
+	if [ $sourcepathsFileExist -ne 0 ] || [ $testfilesFileExist -ne 0 ]; then
+		echo "No testfiles was found!"
+		return 1
+	fi
+
+	CODE_PATH=bin
+	TESTS_FILENAMES=.testfiles
+	. $SCRIPT_PATH/$TESTS_FILENAMES
+
+    isDirExist "$SCRIPT_PATH/$CODE_PATH"
+	if [ $? -ne 0 ]; then
+		mkdir $SCRIPT_PATH/$CODE_PATH
+	else
+		rm -r $SCRIPT_PATH/$CODE_PATH/* 2>/dev/null
+	fi
+
+	# check general environment requirements
+	arrSetupEnvList=( )
+	for iSetupEnv in "${arrSetupEnvList[@]}"
+	do
+		. ${ORIGINALSCRIPT_PATH}/$iSetupEnv
+		[ $? -ne 0 ] &&
+			return 1
+	done
+
+	# check local environment requirements
+    isFileExist $SCRIPT_PATH/.presetup.env
+	if [ $? -eq 0 ]; then
+		. ${SCRIPT_PATH}/.presetup.env
+		[ $? -ne 0 ] &&
+			return 1
+	fi
+
+	JEST_TRYING_TIMES=3
+	verbosemodeStr="Run:"
+	. ${ORIGINALSCRIPT_PATH}/colorcodes.shinc
+
+	verbosetracer $verbosemode "PROJECTROOT_PATH : $PROJECTROOT_PATH"
+	verbosetracer $verbosemode "ORIGINALSCRIPT_PATH : $ORIGINALSCRIPT_PATH"
+	verbosetracer $verbosemode "SCRIPT_PATH : $SCRIPT_PATH"
+
+	if [ $# -ge 1 ]; then
+		for iTest in "${arrTestList[@]}"
+		do
+		    verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iTest.runner"
+			. ${ORIGINALSCRIPT_PATH}/testrunners/$iTest.runner
+			runnerExitCode=$?
+
+		    if [[ $testsReportFile != '' ]]; then
+			    testResultStr="NOSTATUS"
+			    if [ $runnerExitCode -ne 0 ]; then
+			        testResultStr="${BGRED}${WHITE}FAILED${NC}**"
+			    else
+			        testResultStr="${BGGREEN}${WHITE}PASSED${NC}"
+    			fi
+    			echo "|$unitName|$unitPath|$testType|$iTest|$testResultStr" | putToFile "$testsReportFile"
+		    fi
+
+			[ $runnerExitCode -ne 0 ] &&
+				return 1
+		done
+
+		[ $keeptempfiles -ne 0 ] &&
+			rm -r $SCRIPT_PATH/$CODE_PATH 2>/dev/null
+	fi
+
+	return 0
+}

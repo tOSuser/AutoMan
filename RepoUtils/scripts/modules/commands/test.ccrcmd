@@ -1,0 +1,26 @@
+#: ccrun command : test
+#:
+#: File : test.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# Local variables:
+#  runParamArray
+#---------------------------------------
+TRUN_CMD='trun'
+
+BUILD_ARGUMENTS='-keep -b'
+[ $productmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -product"
+[ $verbosemode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -verbose"
+[ $rawmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -rawmode"
+[ $debugmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS debug"
+[ $debugmode -ne 0 ] && [ $infomode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS info"
+
+echo -e "${BLUE}Unit/project/sub-project (at $currentPath) has no internal test command.${NC}"
+return 0

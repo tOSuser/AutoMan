@@ -1,0 +1,311 @@
+#!/bin/bash
+#: ccrun to run tests useing .codechecker files
+#:
+#: File : ccrun
+#
+#
+# Copyright (c) 2022 Nexttop (nexttop.se)
+#---------------------------------------
+TEMPEXTRACTION_DIR=''
+TESTRESULTREPORT_FILE='testsresultreport'
+failstopmode=1
+
+# Helper functions
+#---------------------------------------
+function lookForArgument () #@ USAGE hasArgument argToCheck param1 param2 ...
+{
+    argToCheck=$1
+    inParamArray=($@)
+    inParamArray=("${inParamArray[@]:1}")
+    inParamTotalElements=${#inParamArray[@]}
+
+    currentElement=0
+    for inparam in "${inParamArray[@]}"
+    do
+        if [ "$inparam" = $argToCheck ]; then
+            # The argument was found
+            # Return next element if there is more elements
+            [ $(( inParamTotalElements - 1 )) -gt $currentElement ] &&
+                nextElementId=$(( currentElement + 1 )) &&
+                echo "${inParamArray[currentElement + 1]}"
+            return 0
+        fi
+        currentElement=$(( currentElement + 1 ))
+    done
+
+    # Not found
+    return 1
+}
+
+function putToFile () #@ USAGE putToFile filePath
+{
+    filePath=$1
+    while read -r data; do
+        echo "$data" >> "$filePath"
+    done
+    return 0
+}
+
+function getFromFile () #@ USAGE getFromFile filePath
+{
+    filePath=$1
+    [ -f $filePath ] &&
+        fileContent=$(<"$filePath") &&
+        echo "$fileContent" &&
+        return 0
+    return 1
+}
+
+function column_ansi () #@ USAGE column_ansi parameters
+{
+    while read -r data; do
+        echo -e "$data"
+    done
+    return 0
+}
+
+function isFileExist () #@ USAGE isFileExist filePath
+{
+    filePath=$1
+    [ -f "$filePath" ] &&
+        return 0
+    return 1
+}
+
+function isDirExist () #@ USAGE isDirExist dirPath
+{
+    dirPath=$1
+    [ -d "$dirPath" ] &&
+        return 0
+    return 1
+}
+
+# Functions
+#---------------------------------------
+function runshellcmd ()
+{
+    cmdstr="$1"
+    verbosetracer $verbosemode "runshellcmd: \"$1\""
+    eval $cmdstr
+    return $?
+}
+
+function runtrun () #@ USAGE runtrun unitName unitPath testGroup param1 param2 ...
+{
+    unitName=$1
+    unitPath=$2
+    testGroup=$3
+    verbosetracer $verbosemode "runtrun: $unitName, $unitPath"
+
+    [ ! -f $TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE ] &&
+        echo "|UnitName|unitPath|testGroup|testType|Result" | putToFile "$TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE" &&
+        echo "|-----|-----|-----|-----|-----" | putToFile "$TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE"
+
+    runshellcmd "${@:4} -reportfile $TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE -unitname $unitName -unitpath $unitPath"
+    testResult=$?
+
+    [ $failstopmode -eq 0 ] &&
+        return $testResult
+    return 0
+}
+
+function affectedByCommit () #@ USAGE affectedByCommit projectPath unitPath unitName  param1 param2 ...
+{
+    return 0
+}
+
+function ccrun () {
+    nextitem=$(lookForArgument "-product" "$@")
+    productmode=$?
+    nextitem=$(lookForArgument "-verbose" "$@")
+    verbosemode=$?
+    nextitem=$(lookForArgument "-keep" "$@")
+    keeptempfiles=$?
+    nextitem=$(lookForArgument "-rawmode" "$@")
+    rawmode=$?
+    nextitem=$(lookForArgument "-debug" "$@")
+    debugmode=$?
+    nextitem=$(lookForArgument "-info" "$@")
+    infomode=$?
+
+    nextitem=$(lookForArgument "-failstop" "$@")
+    failstopmode=$?
+
+    jenkinsjobmode=1
+
+    colormode=0
+    if [ $rawmode -eq 0 ]; then
+        colormode=1
+    fi
+
+    ## Import libraries
+    repoUtilssHome=$HOME
+    nextitem=$(lookForArgument "-utilspath" "$@")
+    manualUtilsPathMode=$?
+    [ $manualUtilsPathMode -eq 0 ] &&
+        repoUtilssHome=$nextitem
+
+    nodeModulesHome=$repoUtilssHome
+    nextitem=$(lookForArgument "-nodepath" "$@")
+    [ $? -eq 0 ] &&
+        nodeModulesHome=$nextitem
+
+    nextitem=$(lookForArgument "-projectroot" "$@")
+    manualProjectRootMode=$?
+    [ $manualProjectRootMode -eq 0 ] &&
+        PROJECTROOT_PATH=$nextitem
+
+    if [ $manualProjectRootMode -ne 0 ]; then
+        PROJECTROOT_PATH=$(git rev-parse --show-toplevel)
+        [ $? -ne 0 ] &&
+            echo "$PROJECTROOT_PATH" &&
+            return 1
+    fi
+
+    REPOUTILS_PATH=$repoUtilssHome/repoutils
+    ORIGINALSCRIPT_PATH=$REPOUTILS_PATH
+    SCRIPT_PATH=`pwd`
+
+    # Import heleper modules
+    [ ! -d $ORIGINALSCRIPT_PATH/modules ] &&
+        echo "modules can be not loaded ($ORIGINALSCRIPT_PATH/modules)!" &&
+        return 1
+
+    modulesFileArr=($ORIGINALSCRIPT_PATH/modules/*.shinc)
+    for iModule in "${modulesFileArr[@]}"
+    do
+        [ $verbosemode -eq 0 ] &&
+            echo "load module $iModule!"
+        . $iModule
+    done
+
+    currentPath='./'
+    shellPath='./'
+    nextArgument=$(lookForArgument "-path" "$@")
+    if [ $? -eq 0 ] && [ ! -z "$nextArgument" ]; then
+        SCRIPT_PATH=$nextArgument
+        currentPath=$SCRIPT_PATH
+    fi
+
+    . ${REPOUTILS_PATH}/colorcodes.shinc
+
+    if [[ $( realpath "$SCRIPT_PATH") != $( realpath "$PROJECTROOT_PATH" )* ]]; then
+        verbosetracer $verbosemode "PROJECTROOT_PATH : $PROJECTROOT_PATH"
+        verbosetracer $verbosemode "SCRIPT_PATH : $SCRIPT_PATH"
+        echo "Incorrect paths, the current path is not matched with the project root."
+        return 1
+    fi
+
+    projectPathElements=( ${PROJECTROOT_PATH//\//" " } )
+    projectPathElementslen=${#currentPathProjectElements[@]}
+    PROJECT_NAME=${projectPathElements[$(($projectPathElementslen - 1))]}
+
+    # Building trun commands
+    TRUN_CMD='trun'
+
+    TEST_ARGUMENTS=''
+    [ $productmode -eq 0 ] &&
+        TEST_ARGUMENTS="$TEST_ARGUMENTS -product"
+    [ $verbosemode -eq 0 ] &&
+        TEST_ARGUMENTS="$TEST_ARGUMENTS -verbose"
+    [ $keeptempfiles -eq 0 ] &&
+        TEST_ARGUMENTS="$TEST_ARGUMENTS -keep"
+    [ $rawmode -eq 0 ] &&
+        TEST_ARGUMENTS="$TEST_ARGUMENTS -rawmode"
+    [ $debugmode -eq 0 ] &&
+        TEST_ARGUMENTS="$TEST_ARGUMENTS -debug"
+    [ $debugmode -ne 0 ] && [ $infomode -eq 0 ] &&
+        TEST_ARGUMENTS="$TEST_ARGUMENTS -info"
+
+    UNIT_TEST_CMD="$TRUN_CMD $TEST_ARGUMENTS -u"
+    BLOCK_TEST_CMD="$TRUN_CMD $TEST_ARGUMENTS -b"
+
+    verbosetracer $verbosemode "PROJECTROOT_PATH: $PROJECTROOT_PATH"
+    verbosetracer $verbosemode "REPOUTILS_PATH: $REPOUTILS_PATH"
+    verbosetracer $verbosemode "ORIGINALSCRIPT_PATH: $ORIGINALSCRIPT_PATH"
+    verbosetracer $verbosemode "SCRIPT_PATH: $SCRIPT_PATH"
+    verbosetracer $verbosemode "PROJECT_NAME: $PROJECT_NAME"
+
+    WORKSPACE=$PROJECTROOT_PATH
+    PROJECT_PATH=$WORKSPACE
+    PROJECT_WORKSPACE=$WORKSPACE
+
+    verbosetracer $verbosemode "WORKSPACE: $WORKSPACE"
+    verbosetracer $verbosemode "PROJECT_WORKSPACE: $PROJECT_WORKSPACE"
+    verbosetracer $verbosemode "PROJECT_PATH: $PROJECT_PATH"
+
+    # Looking for commands
+    CCRUNCMD_RUNTEST=runtest
+    currentCommand=$(getFirstArgument $CCRUNCMD_RUNTEST "$@")
+    currentCommandArgPos=$?
+    currentCommandParamArray=(  )
+    [ $currentCommandArgPos -gt 0 ] &&
+        allInParamArray=($@)
+        currentCommandParamArray=("${allInParamArray[@]:$currentCommandArgPos}")
+
+    verbosetracer $verbosemode "currentCommand: $currentCommand"
+
+    # Looking for global unit commands
+    isUnitCommand $currentCommand
+    if [ $? -eq 0 ]; then
+        runUnitCommand $currentCommand $currentPath $shellPath ${currentCommandParamArray[@]}
+        return $?
+    fi
+
+    # Create a temporary folder to store tests' results
+    TEMPEXTRACTION_DIR=$(mktemp -d)
+
+    # Looking for .codechecker in the main project folder
+    codeCheckerRunState=1
+    codeCheckerExitCode=0
+    verbosetracer $verbosemode "Looking for ${SCRIPT_PATH}/.codechecker"
+    isFileExist "$SCRIPT_PATH/.codechecker"
+    if [ $? -eq 0 ]; then
+        verbosetracer $verbosemode "Importing ${SCRIPT_PATH}/.codechecker"
+        . ${SCRIPT_PATH}/.codechecker
+        codeCheckerExitCode=$?
+        codeCheckerRunState=0
+    else
+        codeCheckerRunState=1
+        echo -e "${YELLOW}The current location has no test setting!${NC}"
+    fi
+
+    TOTALRANTESTPASSED=0
+    TOTALRANTESTFAILED=0
+    TOTALRANTESTUNITS=0
+    if [ "$currentCommand" == "$CCRUNCMD_RUNTEST" ]; then
+        isFileExist $TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE
+        if [ $? -eq 0 ]; then
+            TestSammaryReportStr="\nTests' results sammary:"
+            TestSammaryReportStr="$TestSammaryReportStr\n$(column -tnex -s "|" $TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE | column_ansi)"
+            echo -e "$TestSammaryReportStr"
+
+            echo "--------------------"
+            TOTALRANTESTPASSED=$(grep -oc 'PASSED' $TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE)
+            TOTALRANTESTFAILED=$(grep -oc 'FAILED' $TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE)
+            TOTALRANTESTUNITS=$(($TOTALRANTESTPASSED + $TOTALRANTESTFAILED))
+            echo -e "Total: $TOTALRANTESTUNITS, Passed: $TOTALRANTESTPASSED, Failed: $TOTALRANTESTFAILED"
+            if [ $TOTALRANTESTFAILED -ne 0 ]; then
+                echo -e "${BGRED}${WHITE}FAILURE: SOME TESTS DID NOT PASSED.${NC}"
+            else
+                [ $TOTALRANTESTUNITS -ne 0 ] &&
+                    echo -e "${BGGREEN}${WHITE}PASS: ALL TESTS PASSED!${NC}"
+            fi
+        else
+            [ $codeCheckerRunState -eq 0 ] &&
+                echo -e "WARRNING: No report was created."
+        fi
+    fi
+
+    # Remove the temporary folder created to store tests' results
+    #echo $TEMPEXTRACTION_DIR/$TESTRESULTREPORT_FILE
+    isDirExist "$TEMPEXTRACTION_DIR"
+    [ $? -eq 0 ] &&
+        rm -r "$TEMPEXTRACTION_DIR"
+
+    [ "$currentCommand" == "$CCRUNCMD_RUNTEST" ] &&
+        [ $TOTALRANTESTFAILED -ne 0 ] &&
+            return 1
+
+    return $codeCheckerExitCode
+}

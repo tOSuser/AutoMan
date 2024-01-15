@@ -1,0 +1,29 @@
+#: To include color codes to the current script
+#:
+#: File : colorcodes.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+# Define colors
+BGRED=''
+RED=''
+GREEN=''
+YELLOW=''
+BLUE=''
+CYAN=''
+BGGREEN=''
+WHITE=''
+NC='' # No Color
+
+if [ $colormode -eq 0 ]; then
+    BGRED='\033[41m'
+    RED='\033[31m'
+    GREEN='\033[32m'
+    YELLOW='\033[33m'
+    BLUE='\033[34m'
+    CYAN='\033[35m'
+    BGGREEN='\033[42m'
+    WHITE='\033[37m\033[1m'
+    NC='\033[0m' # No Color
+fi

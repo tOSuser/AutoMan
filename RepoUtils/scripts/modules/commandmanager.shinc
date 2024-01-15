@@ -1,0 +1,139 @@
+#: Command Manager functions
+#:
+#: File : commandmanager.shinc
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+
+#*
+#*  @description    run a ccrun command if it is available
+#*
+#*  @param			commandToRun
+#*  @param			currentPath
+#*  @param			shellPath
+#*  @param			inParamArray
+#*
+#*  @return			0 if Found, > 0 if it was not found
+#*
+function runCommand () #@ USAGE runCommand commandToRun currentPath shellPath param1 param2 ...
+{
+	commandToRun=$1
+	commandToRun="${commandToRun,,}"
+	currentPath=$2
+	shellPath=$3
+
+	nextitem=$(hasArgument "-product" "$@")
+	productmode=$?
+	nextitem=$(hasArgument "-verbose" "$@")
+	verbosemode=$?
+	nextitem=$(hasArgument "-keep" "$@")
+	keeptempfiles=$?
+    nextitem=$(lookForArgument "-jenkinsjob" "$@")
+    jenkinsjobmode=$?
+	nextitem=$(hasArgument "-rawmode" "$@")
+	rawmode=$?
+	nextitem=$(hasArgument "-debug" "$@")
+	debugmode=$?
+	nextitem=$(hasArgument "-info" "$@")
+	infomode=$?
+	nextitem=$(hasArgument "-color" "$@")
+	colormode=$?
+    if [ $jenkinsjobmode -eq 0 ] || [ $rawmode -eq 0 ]; then
+        colormode=1
+    fi
+
+	runParamArray=()
+	inParamArray=($@)
+	[ ${#inParamArray[@]} -gt 2 ] &&
+		runParamArray=("${inParamArray[@]:3}")
+
+	# Import helper modules
+	verbosetracer $verbosemode "Tring to import helper modules"
+	verbosetracer $verbosemode "Unit module : $currentPath/.ccrcmd/${commandToRun}.ccrcmd"
+	verbosetracer $verbosemode "Project module : $ORIGINALSCRIPT_PATH/modules/commands/${commandToRun}.ccrcmd"
+	if [ -f "$currentPath/.ccrcmd/${commandToRun}.ccrcmd" ]; then
+		. $currentPath/.ccrcmd/${commandToRun}.ccrcmd
+		return $?
+	elif [ -f "$ORIGINALSCRIPT_PATH/modules/commands/${commandToRun}.ccrcmd" ]; then
+		. $ORIGINALSCRIPT_PATH/modules/commands/${commandToRun}.ccrcmd
+		return $?
+	fi
+
+	echo "the command (${commandToRun}) was not found".
+	# the command was not found
+   	return 1
+}
+
+#*
+#*  @description    check a cammand is a unit command
+#*
+#*  @param			unitCommandToRun
+#*
+#*  @return			0 if Found, > 0 if it was not found
+#*
+function isUnitCommand () #@ USAGE isUnitCommand unitCommandToRun
+{
+	unitCommandToRun=$1
+	[ -f "$ORIGINALSCRIPT_PATH/modules/ucmd/${unitCommandToRun}.ucmd" ] &&
+		return 0
+	# the command was not found
+   	return 1
+}
+
+#*
+#*  @description    Run a unit command if the command available
+#*
+#*  @param			unitCommandToRun
+#*  @param			currentPath
+#*  @param			shellPath
+#*  @param			inParamArray
+#*
+#*  @return			0 if Found, > 0 if it was not found
+#*
+function runUnitCommand () #@ USAGE runUnitCommand unitCommandToRun currentPath shellPath param1 param2 ...
+{
+	unitCommandToRun=$1
+	unitCommandToRun="${unitCommandToRun,,}"
+	currentPath=$2
+	shellPath=$3
+
+	nextitem=$(hasArgument "-product" "$@")
+	productmode=$?
+	nextitem=$(hasArgument "-verbose" "$@")
+	verbosemode=$?
+	nextitem=$(hasArgument "-keep" "$@")
+	keeptempfiles=$?
+    nextitem=$(lookForArgument "-jenkinsjob" "$@")
+    jenkinsjobmode=$?
+	nextitem=$(hasArgument "-rawmode" "$@")
+	rawmode=$?
+	nextitem=$(hasArgument "-debug" "$@")
+	debugmode=$?
+	nextitem=$(hasArgument "-info" "$@")
+	infomode=$?
+	nextitem=$(hasArgument "-color" "$@")
+	colormode=$?
+    if [ $jenkinsjobmode -eq 0 ] || [ $rawmode -eq 0 ]; then
+        colormode=1
+    fi
+	nextitem=$(hasArgument "-gitcommit" "$@")
+	gitcommitmode=$?
+
+	nextitem=$(hasArgument "-githook" "$@")
+	githookmode=$?
+
+	runParamArray=()
+	inParamArray=($@)
+	[ ${#inParamArray[@]} -gt 2 ] &&
+		runParamArray=("${inParamArray[@]:3}")
+
+	# Import helper modules
+	if [ -f "$ORIGINALSCRIPT_PATH/modules/ucmd/${unitCommandToRun}.ucmd" ]; then
+		. $ORIGINALSCRIPT_PATH/modules/ucmd/${unitCommandToRun}.ucmd
+		return $?
+	fi
+
+	# the command was not found
+   	return 1
+}

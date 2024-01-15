@@ -1,0 +1,34 @@
+#: ccrun command : clean
+#:
+#: File : clean.ccrcmd
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#
+# Local variables:
+#  commandToRun
+#  currentPath
+#  runParamArray
+#---------------------------------------
+TRUN_CMD='trun'
+
+BUILD_ARGUMENTS='-keep -b'
+[ $productmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -product"
+[ $verbosemode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -verbose"
+[ $rawmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS -rawmode"
+[ $debugmode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS debug"
+[ $debugmode -ne 0 ] && [ $infomode -eq 0 ] &&
+    BUILD_ARGUMENTS="$BUILD_ARGUMENTS info"
+
+echo -e "${BLUE}Run local pack builder${NC}"
+
+arrTemporaryFolders=( 'bin' '.bin' 'pack' '.pack' )
+for temporaryFolder in ${arrTemporaryFolders[@]}
+do
+    runshellcmd "[ -d \"$shellPath/$temporaryFolder\" ] && rm -r $shellPath/$temporaryFolder"
+    echo -e "Remove ${YELLOW}"$shellPath/$temporaryFolder"${NC}"
+done

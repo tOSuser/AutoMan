@@ -1,0 +1,113 @@
+#: React test runner
+#:
+#: File : react.runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+nodeModulesSymlink=node_modules
+nodeModulesPath=$nodeModulesHome/node_modules
+
+REACTUNIT_FILE="npm run"
+JEST_FILE=$nodeModulesHome/node_modules/.bin/jest
+reactquietmode='NO'
+reactTestFiles=(  )
+tracemode=$LL_INFO
+testMode='UT'
+
+# check react environment requirements
+if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+	arrSetupReactEnvList=( 'nodejs' 'react' )
+	for iSetupEnv in "${arrSetupReactEnvList[@]}"
+	do
+		verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+		. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+		[ $? -ne 0 ] &&
+			return 1
+	done
+fi
+
+# check local environment requirements
+if [[ -f $SCRIPT_PATH/.local.env ]]; then
+	verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+	. ${SCRIPT_PATH}/.local.env
+	[ $? -ne 0 ] &&
+		return 1
+fi
+
+reactCompilerCmd=$REACTUNIT_FILE
+pythonCompilerCmd='python'
+
+# Test files
+#-----------
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	reactTestFiles=${REACT_UNIT_TEST_FILES[@]} && reactquietmode='YES' && testMode='UT'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	reactTestFiles=${REACT_UNIT_TEST_FILES[@]} && reactquietmode='NO' && testMode='UT'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	reactTestFiles=${REACT_BLOCK_TEST_FILES[@]} && reactquietmode='YES' && testMode='BT'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	reactTestFiles=${REACT_BLOCK_TEST_FILES[@]} && reactquietmode='NO' && testMode='BT'
+
+# Trace mode
+#-----------
+nextArgument=$(hasArgument "-info" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_INFO
+nextArgument=$(hasArgument "-debug" "$@"); [ $? -eq 0 ] &&
+	tracemode=$LL_DEBUG
+
+[[ $reactquietmode = 'NO' ]] &&
+	echo "Mode : ${reactCompilerCmd}"
+
+RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+[ $verbosemode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+[ $colormode -ne 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+[ $productmode -eq 0 ] &&
+    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+if [ $reactquietmode = 'NO' ]; then
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+else
+	verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+fi
+
+currentFolder=$(pwd)
+cd $SCRIPT_PATH/bin
+if [ $testMode = 'BT' ]; then
+	verboserun $verbosemode "npm run test -- --watchAll=false"
+	[ $? -ne 0 ] &&
+		cd "$currentFolder" &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : building error${NC}" &&
+		return 1
+	echo "Testing OK."
+
+	verboserun $verbosemode "npm run build"
+	[ $? -ne 0 ] &&
+		cd "$currentFolder" &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo -e "${BGRED}${WHITE}Error : building error${NC}" &&
+		return 1
+
+	echo "Building OK."
+fi
+
+if [ $testMode = 'UT' ]; then
+	for currenttestfile in ${reactTestFiles[@]}
+	do
+		verboserunx $verbosemode $JEST_TRYING_TIMES "$JEST_FILE tests/${currenttestfile}.test.js"
+		[ $? -ne 0 ] &&
+			cd "$currentFolder" &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some test in file ${currenttestfile} were failed${NC}" &&
+			return 1
+	done
+fi
+
+cd "$currentFolder"
+return 0

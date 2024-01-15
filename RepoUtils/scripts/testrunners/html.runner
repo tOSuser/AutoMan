@@ -1,0 +1,91 @@
+#: HTML test runner
+#:
+#: File : html..runner
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#---------------------------------------
+htmlquietmode='NO'
+htmlFiles=(  )
+
+nextArgument=$(hasArgument "-unit" "$@"); [ $? -eq 0 ] &&
+	htmlquietmode='YES' && testMode='UT'
+
+nextArgument=$(hasArgument "-u" "$@"); [ $? -eq 0 ] &&
+	htmlquietmode='NO' && testMode='UT'
+
+nextArgument=$(hasArgument "-block" "$@"); [ $? -eq 0 ] &&
+	htmlquietmode='YES' && testMode='BT'
+
+nextArgument=$(hasArgument "-b" "$@"); [ $? -eq 0 ] &&
+	htmlquietmode='NO' && testMode='BT'
+
+if [ $testMode = 'UT' ]; then
+	# check html environment requirements
+	if [[ ${TRUNENVCHECK:-1} -eq 1 ]]; then
+		arrSetupHtmlEnvList=( 'html' )
+		for iSetupEnv in "${arrSetupHtmlEnvList[@]}"
+		do
+			verbosetracer $verbosemode "${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env"
+			. ${ORIGINALSCRIPT_PATH}/testrunners/$iSetupEnv.env
+			[ $? -ne 0 ] &&
+				return 1
+		done
+	fi
+
+	# check local environment requirements
+	if [[ -f $SCRIPT_PATH/.local.env ]]; then
+		verbosetracer $verbosemode "${SCRIPT_PATH}/.local.env"
+		. ${SCRIPT_PATH}/.local.env
+		[ $? -ne 0 ] &&
+			return 1
+	fi
+
+	pythonCompilerCmd='python'
+
+	htmlFiles=${HTML_FILES[@]}
+	htmlStrictFiles=${HTML_STRICT_FILES[@]}
+	cssFiles=${CSS_FILES[@]}
+
+	RUNBB_ARGUMENTS="-p $SCRIPT_PATH/"
+	[ $verbosemode -eq 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -v"
+	[ $colormode -ne 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -r"
+	[ $productmode -eq 0 ] &&
+	    RUNBB_ARGUMENTS="$RUNBB_ARGUMENTS -m product"
+
+	if [ $htmlquietmode = 'NO' ]; then
+		verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS"
+	else
+		verboserun $verbosemode "$pythonCompilerCmd \"$ORIGINALSCRIPT_PATH/runbb.py\" $RUNBB_ARGUMENTS" >>/dev/null
+	fi
+
+	[ $? -ne 0 ] &&
+		$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+		echo "Error : compiling error" &&
+		return 1
+
+	echo "HTML checker:"
+	for currenthtmlfile in ${htmlFiles[@]}
+	do
+		verboserun $verbosemode "tidy -e -q -omit --custom-tags yes $SCRIPT_PATH/$CODE_PATH/$currenthtmlfile"
+
+		[ $? -eq 2 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some html tags in file '${currenthtmlfile}' are not correct.${NC}" &&
+			return 1
+		echo "$currenthtmlfile - OK"
+	done
+
+	for currenthtmlfile in ${htmlStrictFiles[@]}
+	do
+		verboserun $verbosemode "tidy -e -q -omit $SCRIPT_PATH/$CODE_PATH/$currenthtmlfile"
+		[ $? -eq 2 ] &&
+			$(RemoveTempFolder $keeptempfiles $SCRIPT_PATH/$CODE_PATH) &&
+			echo -e "${BGRED}${WHITE}Error : Some html tags in file '${currenthtmlfile}' are not correct.${NC}" &&
+			return 1
+		echo "$currenthtmlfile - OK"
+	done
+fi
+return 0

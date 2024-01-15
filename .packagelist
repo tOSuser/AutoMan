@@ -1,0 +1,16 @@
+#: The repo package
+#:
+#: File : .packagelist
+#
+#
+# Copyright (c) 2023 Nexttop (nexttop.se)
+#-------------------------------------------------
+#
+# Local variables:
+#
+#-------------------------------------------------
+subProject_1=( 'JenkinsPiplineJobs' 'Jenkins/jobs' 'M' 'tomcat:tomcat' )
+subProject_2=( 'RepoUtils' 'RepoUtils' 'M' '' )
+subProject_3=( 'PackageInstaller' 'PackageTools' 'M' '' )
+subProject_4=( 'NextEnvDocument' 'document/internal' 'M' '' )
+arrSubProjects=( subProject_1 subProject_2 subProject_3 subProject_4 )

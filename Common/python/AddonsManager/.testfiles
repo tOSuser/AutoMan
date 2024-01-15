@@ -1,0 +1,6 @@
+arrTestList=( 'python' )
+
+PYTHON_BLOCK_TEST_FILES=(  )
+PYTHON_UNIT_TEST_FILES=( 'TestAddonsManager' 'TestAddonTemplate' )
+PHP_BLOCK_TEST_FILES=(  )
+PHP_UNIT_TEST_FILES=(  )
