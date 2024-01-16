@@ -12,19 +12,19 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU Affero General Public License, version 3, along with this program. If not, see http://www.gnu.org/licenses/
 
 ## A short background
-neeed-to-be-completed
+need-to-be-completed
 
 ## What AutoMan is
-neeed-to-be-completed
+need-to-be-completed
 
 # An overview of AutoMan
-neeed-to-be-completed
+need-to-be-completed
 
 # AutoMan features
-* neeed-to-be-completed
+* need-to-be-completed
 
 # History
-neeed-to-be-completed
+need-to-be-completed
 
 
 # Tests
