@@ -23,9 +23,6 @@ need-to-be-completed
 # AutoMan features
 * need-to-be-completed
 
-# History
-need-to-be-completed
-
 
 # Tests
 
